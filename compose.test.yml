@@ -1,0 +1,18 @@
+services:
+  postgres_test:
+    image: pgvector/pgvector:pg17
+    container_name: muscle_training_postgres_test
+    environment:
+      POSTGRES_DB: muscle_training_test
+      POSTGRES_USER: test_user
+      POSTGRES_PASSWORD: test_password
+      POSTGRES_INITDB_ARGS: "--encoding=UTF8 --locale=C"
+    ports:
+      - "5433:5432"
+    tmpfs:
+      - /var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U test_user -d muscle_training_test"]
+      interval: 5s
+      timeout: 3s
+      retries: 5

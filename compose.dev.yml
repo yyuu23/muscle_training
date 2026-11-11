@@ -1,0 +1,71 @@
+services:
+  postgres:
+    image: pgvector/pgvector:pg17
+    container_name: muscle_training_postgres_dev
+    environment:
+      POSTGRES_DB: muscle_training_dev
+      POSTGRES_USER: muscle_training
+      POSTGRES_PASSWORD: dev_password
+      POSTGRES_INITDB_ARGS: "--encoding=UTF8 --locale=C"
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data_dev:/var/lib/postgresql/data
+      - ./deploy/postgres/bootstrap_roles.sql:/docker-entrypoint-initdb.d/01_bootstrap_roles.sql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U muscle_training -d muscle_training_dev"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  api:
+    build:
+      context: .
+      dockerfile: apps/api/Dockerfile
+      target: development
+    container_name: muscle_training_api_dev
+    environment:
+      - PYTHON_ENV=development
+      - DATABASE_URL=postgresql+asyncpg://muscle_training:dev_password@postgres:5432/muscle_training_dev
+      - STORAGE_BACKEND=filesystem
+      - STORAGE_BASE_PATH=/app/storage
+    env_file:
+      - .env
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./apps/api/src:/app/src:ro
+      - ./storage:/app/storage
+    depends_on:
+      postgres:
+        condition: service_healthy
+    command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  worker:
+    build:
+      context: .
+      dockerfile: apps/api/Dockerfile
+      target: development
+    container_name: muscle_training_worker_dev
+    environment:
+      - PYTHON_ENV=development
+      - DATABASE_URL=postgresql+asyncpg://muscle_training:dev_password@postgres:5432/muscle_training_dev
+      - STORAGE_BACKEND=filesystem
+      - STORAGE_BASE_PATH=/app/storage
+    env_file:
+      - .env
+    volumes:
+      - ./apps/api/src:/app/src:ro
+      - ./storage:/app/storage
+    depends_on:
+      postgres:
+        condition: service_healthy
+    command: python -m app.jobs.worker
+
+volumes:
+  postgres_data_dev:

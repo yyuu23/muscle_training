@@ -1,0 +1,87 @@
+services:
+  postgres:
+    image: pgvector/pgvector:pg17
+    container_name: muscle_training_postgres_prod
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-muscle_training}
+      POSTGRES_USER: ${POSTGRES_USER:-muscle_training}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD must be set}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./deploy/postgres/bootstrap_roles.sql:/docker-entrypoint-initdb.d/01_bootstrap_roles.sql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-muscle_training}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+    networks:
+      - backend
+
+  api:
+    build:
+      context: .
+      dockerfile: apps/api/Dockerfile
+      target: production
+    container_name: muscle_training_api_prod
+    environment:
+      - PYTHON_ENV=production
+      - DATABASE_URL=${DATABASE_URL:?DATABASE_URL must be set}
+    env_file:
+      - .env
+    depends_on:
+      postgres:
+        condition: service_healthy
+    restart: unless-stopped
+    networks:
+      - backend
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  worker:
+    build:
+      context: .
+      dockerfile: apps/api/Dockerfile
+      target: production
+    container_name: muscle_training_worker_prod
+    environment:
+      - PYTHON_ENV=production
+      - DATABASE_URL=${DATABASE_URL:?DATABASE_URL must be set}
+    env_file:
+      - .env
+    depends_on:
+      postgres:
+        condition: service_healthy
+    restart: unless-stopped
+    networks:
+      - backend
+    command: python -m app.jobs.worker
+
+  caddy:
+    image: caddy:2.8-alpine
+    container_name: muscle_training_caddy_prod
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./deploy/Caddyfile:/etc/caddy/Caddyfile:ro
+      - ./apps/web/dist:/srv/static:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    depends_on:
+      - api
+    restart: unless-stopped
+    networks:
+      - backend
+
+volumes:
+  postgres_data:
+  caddy_data:
+  caddy_config:
+
+networks:
+  backend:
+    driver: bridge
