@@ -1,0 +1,42 @@
+schema_version: 1
+slug: beginner-fullbody-3d
+content_version: 1
+display_name: 新手全身（每周三天）
+intended_population: "系统训练 0-12 个月、每周可安排 3 次训练的用户"
+sessions_per_week: 3
+required_intake_fields: ["goal", "training_experience_months", "sessions_per_week", "minutes_per_session", "equipment"]
+eligibility:
+  experience_months_max: 18
+  requires_load_calibration: true
+session_slots:
+  - slot_key: squat
+    movement_pattern: squat
+    exercise_count: 1
+  - slot_key: hinge
+    movement_pattern: hinge
+    exercise_count: 1
+  - slot_key: push
+    movement_pattern: push
+    exercise_count: 1
+  - slot_key: pull
+    movement_pattern: pull
+    exercise_count: 1
+  - slot_key: core
+    movement_pattern: isometric
+    exercise_count: 1
+allowed_exercise_ids: []
+allowed_set_ranges: { min: 2, max: 4 }
+allowed_rep_ranges: { min: 8, max: 12 }
+allowed_rest_ranges: { min: 90, max: 180 }
+target_rir_ranges: { min: 2, max: 3 }
+progression_policy: double_progression_v1
+time_estimation_parameters:
+  seconds_per_set: 40
+  warmup_minutes: 8
+  exercise_transition_minutes: 2.5
+approved_short_session_variants:
+  - label: "时间紧张时"
+    drop_slots: ["core"]
+evidence_refs: []
+review_status: draft
+fixture: false

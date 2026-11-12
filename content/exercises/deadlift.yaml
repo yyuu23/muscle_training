@@ -1,0 +1,24 @@
+schema_version: 1
+slug: deadlift
+content_version: 1
+display_name: 硬拉
+aliases: ["屈膝硬拉", "deadlift"]
+movement_pattern: hinge
+required_equipment: ["barbell"]
+metric_type: reps
+load_mode: total_external
+instructions:
+  - "杠铃贴近小腿，双脚位于杠铃正下方，站距与髋同宽"
+  - "屈髋握杠，双手略宽于双腿，背部平直、肩胛位于杠铃上方"
+  - "吸气绷紧躯干，脚掌推地将杠铃沿腿拉起"
+  - "站立位挺髋收紧臀部，不刻意后仰"
+  - "下放时屈髋控制，杠铃沿原路径回到地面"
+common_errors:
+  - "起身瞬间腰椎弯曲（圆背）"
+  - "杠铃远离身体轨迹"
+  - "顶端过度后仰伸展腰椎"
+  - "用 bounce 借力连续拉起"
+approved_alternatives: ["barbell-row"]
+evidence_refs: []
+review_status: draft
+fixture: false

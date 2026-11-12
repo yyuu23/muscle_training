@@ -1,0 +1,54 @@
+{
+  "title": "新手全身基础计划",
+  "goal": "建立基础力量与动作模式",
+  "template_slug": "beginner-fullbody-3d",
+  "days": [
+    {
+      "day_key": "day_1",
+      "weekday": 1,
+      "estimated_minutes": 50,
+      "exercises": [
+        {
+          "exercise_slug": "squat",
+          "working_sets": 3,
+          "reps_min": 8,
+          "reps_max": 12,
+          "duration_seconds": null,
+          "rest_seconds": 120,
+          "target_rir": 2,
+          "initial_load_kg": null,
+          "load_instruction": "首次训练记录实际重量，不要推算",
+          "reason": "符合模板下肢槽位，器械可用"
+        },
+        {
+          "exercise_slug": "bench-press",
+          "working_sets": 3,
+          "reps_min": 8,
+          "reps_max": 12,
+          "duration_seconds": null,
+          "rest_seconds": 120,
+          "target_rir": 2,
+          "initial_load_kg": null,
+          "reason": "符合模板推槽位"
+        }
+      ]
+    },
+    {
+      "day_key": "day_2",
+      "weekday": 3,
+      "estimated_minutes": 50,
+      "exercises": [
+        {"exercise_slug": "barbell-row", "working_sets": 3, "reps_min": 8, "reps_max": 12, "duration_seconds": null, "rest_seconds": 120, "target_rir": 2, "initial_load_kg": null}
+      ]
+    },
+    {
+      "day_key": "day_3",
+      "weekday": 5,
+      "estimated_minutes": 50,
+      "exercises": [
+        {"exercise_slug": "overhead-press", "working_sets": 3, "reps_min": 8, "reps_max": 12, "duration_seconds": null, "rest_seconds": 120, "target_rir": 2, "initial_load_kg": null}
+      ]
+    }
+  ],
+  "notes": "前两周以动作质量为主，不做进阶加重"
+}

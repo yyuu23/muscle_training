@@ -1,0 +1,39 @@
+schema_version: 1
+slug: beginner-fullbody-2d
+content_version: 1
+display_name: 新手全身（每周两天）
+intended_population: "系统训练 0-6 个月、每周可安排 2 次训练的新手"
+sessions_per_week: 2
+required_intake_fields: ["goal", "training_experience_months", "sessions_per_week", "minutes_per_session", "equipment"]
+eligibility:
+  experience_months_max: 12
+  requires_load_calibration: true
+session_slots:
+  - slot_key: lower_push
+    movement_pattern: squat
+    exercise_count: 1
+  - slot_key: upper_push
+    movement_pattern: push
+    exercise_count: 1
+  - slot_key: upper_pull
+    movement_pattern: pull
+    exercise_count: 1
+  - slot_key: core
+    movement_pattern: isometric
+    exercise_count: 1
+allowed_exercise_ids: []
+allowed_set_ranges: { min: 2, max: 3 }
+allowed_rep_ranges: { min: 8, max: 12 }
+allowed_rest_ranges: { min: 90, max: 180 }
+target_rir_ranges: { min: 2, max: 4 }
+progression_policy: double_progression_v1
+time_estimation_parameters:
+  seconds_per_set: 40
+  warmup_minutes: 8
+  exercise_transition_minutes: 2.5
+approved_short_session_variants:
+  - label: "时间紧张时"
+    drop_slots: ["core"]
+evidence_refs: []
+review_status: draft
+fixture: false

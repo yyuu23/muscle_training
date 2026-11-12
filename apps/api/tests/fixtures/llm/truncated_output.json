@@ -1,0 +1,8 @@
+{
+  "description": "截断的 JSON 输出：响应在字符串中间被切断，无法解析",
+  "raw_content": "{\"status\": \"answered\", \"answer_markdown\": \"深蹲时注意保持核心收紧，膝盖与脚尖方向一致，下蹲到大腿至少与地面平行。重量选择上，新手建议从空杆开始，逐步增加。呼吸方",
+  "expected_validation": {
+    "parse_result": "JSON 解析失败",
+    "outcome": "触发一次修复重试；仍失败则返回 MODEL_OUTPUT_INVALID，不向用户展示半截内容"
+  }
+}

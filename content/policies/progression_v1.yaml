@@ -1,0 +1,27 @@
+# 进阶策略参数（plan §7.6）
+policy_version: 1
+
+hold:
+  description: "保持当前负荷，只记录与解释"
+  produces_numeric_suggestion: false
+
+double_progression_v1:
+  description: "连续两次达标后建议加重，结果仅作为建议需用户采用"
+  produces_numeric_suggestion: true
+  conditions:
+    same_exercise_content_version: true
+    same_equipment_and_load_mode: true
+    consecutive_valid_sessions: 2
+    target_working_sets_fully_recorded: true
+    reps_condition: "上次最高次数 >= 模板次数上限（无上限时用下限）"
+    rir_condition: "记录 RIR >= 模板阈值（阈值在模板 target_rir_ranges.min）"
+    no_unresolved_discomfort: true
+    explicit_increment_available: true
+    increment_within_template_range: true
+  exclusions:
+    - "bodyweight: 不产生数字加重建议，只记录与解释"
+    - "band: 不产生数字加重建议，只记录与解释"
+    - "assistance: 不产生数字加重建议；助力数值下降通常代表进步"
+  increments:
+    quantize_step_kg: 0.05
+    typical_available: ["1.25", "2.5", "5"]

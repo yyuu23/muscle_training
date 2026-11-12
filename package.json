@@ -1,16 +1,17 @@
 {
   "name": "muscle-training",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "private": true,
   "type": "module",
   "scripts": {
-    "dev": "pnpm --filter web dev",
-    "build": "pnpm --filter web build",
-    "test": "pnpm --filter web test",
-    "test:e2e": "pnpm --filter web test:e2e",
-    "lint": "pnpm --filter web lint",
-    "typecheck": "pnpm --filter web typecheck",
-    "generate:types": "node scripts/generate-types.mjs"
+    "dev": "pnpm --filter @fitness/web dev",
+    "build": "pnpm --filter @fitness/web build",
+    "test:web": "pnpm --filter @fitness/web test",
+    "test:e2e": "pnpm --filter @fitness/web test:e2e",
+    "lint": "pnpm --filter @fitness/web lint",
+    "typecheck": "pnpm --filter @fitness/web typecheck",
+    "contracts:generate": "uv run --project apps/api python -m app.cli export-openapi --output contracts/openapi.json && node scripts/generate-types.mjs",
+    "contracts:check": "uv run --project apps/api python scripts/check_contracts.py"
   },
   "engines": {
     "node": ">=22.0.0",

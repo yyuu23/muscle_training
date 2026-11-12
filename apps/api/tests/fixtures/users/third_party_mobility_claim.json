@@ -1,0 +1,19 @@
+{
+  "username": "mobility_claim",
+  "display_name": "被转述身体判断的用户",
+  "profile": {
+    "goal": "改善体态",
+    "training_experience_months": 18,
+    "sessions_per_week": 4,
+    "minutes_per_session": 60,
+    "available_weekdays": [2, 3, 5, 6],
+    "equipment": ["barbell", "dumbbell", "pull-up-bar"],
+    "available_load_increments": ["2.5"]
+  },
+  "statement": "我朋友说我肩胛骨不够灵活，需要重点练肩袖",
+  "expected_behavior": {
+    "candidate_source_kind": "reported_third_party",
+    "must_not": "自动写成已确认的身体结论或诊断",
+    "must": "保存为待确认候选，来源标注为他人转述；用户确认前不进入计划约束"
+  }
+}

@@ -1,0 +1,28 @@
+{
+  "description": "连续两次达到进阶条件的历史：同动作、同器械、同计量、次数达标、RIR 满足",
+  "exercise_slug": "bench-press",
+  "equipment_label": "barbell",
+  "load_mode": "total_external",
+  "target": {"working_sets": 3, "reps_min": 8, "reps_max": 12, "rir_condition": ">=2"},
+  "sessions": [
+    {
+      "date": "2026-10-26",
+      "working_sets_recorded": 3,
+      "top_load_kg": "40.00",
+      "reps_top": 10,
+      "rir": 3
+    },
+    {
+      "date": "2026-11-02",
+      "working_sets_recorded": 3,
+      "top_load_kg": "40.00",
+      "reps_top": 12,
+      "rir": 2
+    }
+  ],
+  "expected_progression": {
+    "kind": "load_increase",
+    "increment_kg": "2.5",
+    "suggested_load_kg": "42.50"
+  }
+}

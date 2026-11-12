@@ -1,0 +1,83 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Training template content file",
+  "description": "训练模板内容定义（plan §10.2）。时间估算由代码根据参数计算，不信任模型输出的预计时间。",
+  "type": "object",
+  "required": [
+    "schema_version",
+    "slug",
+    "content_version",
+    "display_name",
+    "sessions_per_week",
+    "session_slots",
+    "progression_policy"
+  ],
+  "properties": {
+    "schema_version": { "const": 1 },
+    "template_id": { "type": "string", "format": "uuid" },
+    "slug": { "type": "string", "pattern": "^[a-z0-9-]+$", "maxLength": 100 },
+    "content_version": { "type": "integer", "minimum": 1 },
+    "display_name": { "type": "string", "minLength": 1, "maxLength": 200 },
+    "intended_population": { "type": "string" },
+    "sessions_per_week": { "type": "integer", "minimum": 1, "maximum": 7 },
+    "required_intake_fields": { "type": "array", "items": { "type": "string" } },
+    "eligibility": { "type": "object" },
+    "session_slots": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "required": ["slot_key", "movement_pattern"],
+        "properties": {
+          "slot_key": { "type": "string" },
+          "movement_pattern": { "type": "string" },
+          "exercise_count": { "type": "integer", "minimum": 1, "maximum": 8 }
+        }
+      }
+    },
+    "allowed_exercise_ids": { "type": "array", "items": { "type": "string" } },
+    "allowed_set_ranges": {
+      "type": "object",
+      "properties": {
+        "min": { "type": "integer", "minimum": 1 },
+        "max": { "type": "integer", "minimum": 1 }
+      }
+    },
+    "allowed_rep_ranges": {
+      "type": "object",
+      "properties": {
+        "min": { "type": "integer", "minimum": 0 },
+        "max": { "type": "integer", "minimum": 0 }
+      }
+    },
+    "allowed_rest_ranges": {
+      "type": "object",
+      "properties": {
+        "min": { "type": "integer", "minimum": 15 },
+        "max": { "type": "integer", "maximum": 600 }
+      }
+    },
+    "target_rir_ranges": {
+      "type": "object",
+      "properties": {
+        "min": { "type": "integer", "minimum": 0, "maximum": 10 },
+        "max": { "type": "integer", "minimum": 0, "maximum": 10 }
+      }
+    },
+    "progression_policy": { "enum": ["hold", "double_progression_v1"] },
+    "time_estimation_parameters": {
+      "type": "object",
+      "description": "代码计算时长的参数：每组秒数、休息、切换动作开销、热身",
+      "properties": {
+        "seconds_per_set": { "type": "integer" },
+        "warmup_minutes": { "type": "integer" },
+        "exercise_transition_minutes": { "type": "number" }
+      }
+    },
+    "approved_short_session_variants": { "type": "array", "items": { "type": "object" } },
+    "evidence_refs": { "type": "array", "items": { "type": "string" } },
+    "review_status": { "enum": ["draft"], "default": "draft" },
+    "fixture": { "type": "boolean", "default": false }
+  },
+  "additionalProperties": false
+}

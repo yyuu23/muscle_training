@@ -1,0 +1,22 @@
+schema_version: 1
+slug: overhead-press
+content_version: 1
+display_name: 推举
+aliases: ["站姿推举", "实力举", "overhead press"]
+movement_pattern: push
+required_equipment: ["barbell"]
+metric_type: reps
+load_mode: total_external
+instructions:
+  - "杠铃架于锁骨前，肘部略在杠前，双脚与髋同宽"
+  - "收紧臀腹，肋骨下压，身体形成刚性柱"
+  - "头部微后让杠铃路径垂直上移，随即头部穿过手臂"
+  - "推至手臂伸直不锁死，杠铃位于耳侧正上方"
+common_errors:
+  - "把站姿推举做成借力推（除非刻意安排）"
+  - "腰椎过度前凸代偿"
+  - "杠铃绕头前移，路径变弧线"
+approved_alternatives: ["dip"]
+evidence_refs: []
+review_status: draft
+fixture: false

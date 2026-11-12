@@ -1,0 +1,22 @@
+schema_version: 1
+slug: plank
+content_version: 1
+display_name: 平板支撑
+aliases: ["plank", "核心支撑"]
+movement_pattern: isometric
+required_equipment: []
+metric_type: duration
+load_mode: bodyweight
+instructions:
+  - "肘部位于肩正下方，前臂平行向前"
+  - "从头到脚踝成一条直线，收紧腹部与臀部"
+  - "自然呼吸，保持规定时长"
+  - "腰部下塌或臀部抬起时立即结束该组"
+common_errors:
+  - "憋气"
+  - "臀部过高（偷懒位）"
+  - "腰部明显下塌仍硬撑"
+approved_alternatives: []
+evidence_refs: []
+review_status: draft
+fixture: false

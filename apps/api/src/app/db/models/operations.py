@@ -1,42 +1,58 @@
 """
-Knowledge base and operations models
+Operations models: conversations, weekly reviews, jobs, sync events,
+model runs, audit events, backup runs, deletion ledger (plan §5.8).
 """
 
 import uuid
 from datetime import datetime
 
-from sqlalchemy import Boolean, DateTime, Enum, ForeignKey, Integer, String, Text, func
-from sqlalchemy.dialects.postgresql import JSONB, TSVECTOR, UUID
+from sqlalchemy import (
+    BigInteger,
+    Boolean,
+    DateTime,
+    Enum,
+    ForeignKey,
+    Index,
+    Integer,
+    String,
+    Text,
+    UniqueConstraint,
+    func,
+)
+from sqlalchemy.dialects.postgresql import JSONB, UUID
 from sqlalchemy.orm import Mapped, mapped_column
-from pgvector.sqlalchemy import Vector
 
 from app.db.base import Base
 
+JOB_STATUSES = (
+    "queued",
+    "running",
+    "waiting_external",
+    "succeeded",
+    "failed",
+    "needs_attention",
+    "cancelled",
+)
 
-class KnowledgeSource(Base):
-    """Knowledge source (video, document, etc.)"""
+JOB_TYPES = (
+    "knowledge_import",
+    "knowledge_index",
+    "plan_generate",
+    "weekly_review",
+    "user_export",
+    "user_delete",
+    "temporary_asset_cleanup",
+)
 
-    __tablename__ = "knowledge_sources"
+
+class Conversation(Base):
+    """Chat conversation (plain conversation text expires after 90 days)."""
+
+    __tablename__ = "conversations"
 
     id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    owner_user_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), index=True)
-
-    visibility: Mapped[str] = mapped_column(
-        Enum("private", "shared", name="source_visibility"),
-        nullable=False,
-        default="shared"
-    )
-
-    title: Mapped[str] = mapped_column(String(500), nullable=False)
-    author: Mapped[str | None] = mapped_column(String(200))
-    original_url: Mapped[str | None] = mapped_column(Text)
-
-    source_type: Mapped[str] = mapped_column(
-        Enum("video", "audio", "document", "subtitle", name="source_type"),
-        nullable=False
-    )
-
-    active_revision_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True))
+    user_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), nullable=False, index=True)
+    title: Mapped[str | None] = mapped_column(Text)
 
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
     updated_at: Mapped[datetime] = mapped_column(
@@ -44,138 +60,126 @@ class KnowledgeSource(Base):
     )
 
 
-class SourceRevision(Base):
-    """Source revision with processed content"""
+class Message(Base):
+    """Chat message with evidence references."""
 
-    __tablename__ = "source_revisions"
-
-    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    source_id: Mapped[uuid.UUID] = mapped_column(
-        UUID(as_uuid=True), ForeignKey("knowledge_sources.id", ondelete="CASCADE")
+    __tablename__ = "messages"
+    __table_args__ = (
+        Index("ix_messages_conversation", "conversation_id", "created_at"),
     )
 
-    content_hash: Mapped[str] = mapped_column(String(64), nullable=False, index=True)
-    transcript_asset_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True))
-
-    reviewed_by: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True))
-    reviewed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
-
-    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
-
-
-class KnowledgeChunk(Base):
-    """Knowledge chunk with vector embedding"""
-
-    __tablename__ = "knowledge_chunks"
-
     id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    revision_id: Mapped[uuid.UUID] = mapped_column(
-        UUID(as_uuid=True), ForeignKey("source_revisions.id", ondelete="CASCADE")
+    user_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), nullable=False, index=True)
+    conversation_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("conversations.id", ondelete="CASCADE"), nullable=False
     )
 
-    ordinal: Mapped[int] = mapped_column(Integer, nullable=False)
+    role: Mapped[str] = mapped_column(String(20), nullable=False)  # user / assistant / system
+    content: Mapped[str] = mapped_column(Text, nullable=False)
 
-    # Timestamps for video/audio reference
-    start_ms: Mapped[int | None] = mapped_column(Integer)
-    end_ms: Mapped[int | None] = mapped_column(Integer)
+    evidence_refs: Mapped[list] = mapped_column(JSONB, default=list)
 
-    original_text: Mapped[str] = mapped_column(Text, nullable=False)
-    corrected_text: Mapped[str | None] = mapped_column(Text)
-
-    tags: Mapped[list] = mapped_column(JSONB, default=list)
-
-    # Full-text search vector
-    search_vector: Mapped[str | None] = mapped_column(TSVECTOR)
-
-    # Semantic embedding (1024 dimensions for qwen3.7-text-embedding)
-    embedding: Mapped[list | None] = mapped_column(Vector(1024))
-    embedding_model: Mapped[str | None] = mapped_column(String(100))
-
-    content_hash: Mapped[str] = mapped_column(String(64), nullable=False)
-
-    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), index=True)
 
 
-class Asset(Base):
-    """Stored assets (files)"""
+class WeeklyReview(Base):
+    """Weekly review. Statistics computed by code; model only interprets."""
 
-    __tablename__ = "assets"
+    __tablename__ = "weekly_reviews"
 
     id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    user_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), nullable=False, index=True)
 
-    object_key: Mapped[str] = mapped_column(String(500), unique=True, nullable=False)
-    sha256: Mapped[str] = mapped_column(String(64), nullable=False, index=True)
+    week_start: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, index=True)
 
-    mime_type: Mapped[str] = mapped_column(String(100), nullable=False)
-    size_bytes: Mapped[int] = mapped_column(Integer, nullable=False)
+    data_revision: Mapped[int] = mapped_column(Integer, nullable=False)
+    data_cutoff_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
 
-    retention_class: Mapped[str] = mapped_column(
-        Enum("durable", "temporary_import", "export", name="retention_class"),
-        nullable=False,
-        default="durable"
-    )
+    statistics: Mapped[dict] = mapped_column(JSONB, nullable=False)
+    narrative: Mapped[str | None] = mapped_column(Text)
 
-    expires_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    proposed_plan_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True))
+
+    stale: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+
+    model_run_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True))
 
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
 
 class Job(Base):
-    """Background job queue"""
+    """PostgreSQL-backed job queue with leases."""
 
     __tablename__ = "jobs"
+    __table_args__ = (
+        UniqueConstraint("dedupe_key", name="uq_job_dedupe_key"),
+        Index("ix_jobs_claimable", "status", "run_after"),
+    )
 
     id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    user_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), index=True)
+    owner_user_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), index=True)
 
     type: Mapped[str] = mapped_column(String(100), nullable=False, index=True)
 
     status: Mapped[str] = mapped_column(
-        Enum("pending", "leased", "running", "completed", "failed", name="job_status"),
+        Enum(*JOB_STATUSES, name="job_status"),
         nullable=False,
-        default="pending",
-        index=True
+        default="queued",
+        index=True,
     )
 
     phase: Mapped[str | None] = mapped_column(String(100))
 
-    payload: Mapped[dict] = mapped_column(JSONB, nullable=False)
-    result: Mapped[dict | None] = mapped_column(JSONB)
+    # Payload holds entity IDs and config only, never full health data.
+    payload: Mapped[dict] = mapped_column(JSONB, nullable=False, default=dict)
+    result_ref: Mapped[dict | None] = mapped_column(JSONB)
+
+    dedupe_key: Mapped[str | None] = mapped_column(String(200))
 
     attempts: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
     max_attempts: Mapped[int] = mapped_column(Integer, nullable=False, default=3)
 
-    lease_expires_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), index=True)
-    leased_by: Mapped[str | None] = mapped_column(String(100))
+    run_after: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), index=True
+    )
 
-    external_task_id: Mapped[str | None] = mapped_column(String(200))  # For ASR polling
+    lease_owner: Mapped[str | None] = mapped_column(String(100))
+    lease_expires_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
 
-    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), index=True)
-    started_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
-    completed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    external_task_id: Mapped[str | None] = mapped_column(String(200))
+
+    error_code: Mapped[str | None] = mapped_column(String(100))
+    error_detail: Mapped[str | None] = mapped_column(Text)
+
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
+    )
 
 
 class SyncEvent(Base):
-    """Sync event for idempotency"""
+    """Applied sync event ledger. (user_id, event_id) deduplicates."""
 
     __tablename__ = "sync_events"
+    __table_args__ = (
+        UniqueConstraint("user_id", "event_id", name="uq_sync_user_event"),
+    )
 
     id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     user_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), nullable=False, index=True)
-
-    idempotency_key: Mapped[str] = mapped_column(String(100), unique=True, index=True, nullable=False)
+    event_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), nullable=False)
+    device_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), nullable=False)
 
     event_type: Mapped[str] = mapped_column(String(50), nullable=False)
-    payload: Mapped[dict] = mapped_column(JSONB, nullable=False)
 
-    response: Mapped[dict | None] = mapped_column(JSONB)
+    payload_hash: Mapped[str] = mapped_column(String(64), nullable=False)
+    result: Mapped[dict | None] = mapped_column(JSONB)
 
-    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
-    expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, index=True)
+    applied_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
 
 class ModelRun(Base):
-    """Model API call tracking"""
+    """Model API call tracking for budget and audit."""
 
     __tablename__ = "model_runs"
 
@@ -186,16 +190,75 @@ class ModelRun(Base):
     provider: Mapped[str] = mapped_column(String(50), nullable=False)
     model: Mapped[str] = mapped_column(String(100), nullable=False)
 
-    prompt_version: Mapped[str | None] = mapped_column(String(50))
+    prompt_version: Mapped[str | None] = mapped_column(String(100))
 
     input_tokens: Mapped[int | None] = mapped_column(Integer)
     output_tokens: Mapped[int | None] = mapped_column(Integer)
-    total_tokens: Mapped[int | None] = mapped_column(Integer)
+    estimated_cost: Mapped[int | None] = mapped_column(Integer)  # fen (0.01 CNY)
 
-    cost_rmb: Mapped[float | None] = mapped_column(Integer)  # Store as fen (cents)
     latency_ms: Mapped[int | None] = mapped_column(Integer)
 
-    success: Mapped[bool] = mapped_column(Boolean, nullable=False)
-    error: Mapped[str | None] = mapped_column(Text)
+    status: Mapped[str] = mapped_column(String(30), nullable=False, default="succeeded")
+    error_code: Mapped[str | None] = mapped_column(String(100))
 
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), index=True)
+
+
+class AuditEvent(Base):
+    """Audit trail for sensitive actions."""
+
+    __tablename__ = "audit_events"
+
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    actor_user_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), index=True)
+
+    action: Mapped[str] = mapped_column(String(100), nullable=False)
+    entity_type: Mapped[str] = mapped_column(String(50), nullable=False)
+    entity_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True))
+
+    # (named `meta`: `metadata` is reserved for Declarative MetaData)
+    meta: Mapped[dict | None] = mapped_column(JSONB)
+
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), index=True)
+
+
+class BackupRun(Base):
+    """System backup run record."""
+
+    __tablename__ = "backup_runs"
+
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+
+    snapshot_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    status: Mapped[str] = mapped_column(
+        Enum("running", "succeeded", "failed", name="backup_status"),
+        nullable=False,
+        default="running",
+    )
+
+    archive_key: Mapped[str | None] = mapped_column(String(500))
+    archive_sha256: Mapped[str | None] = mapped_column(String(64))
+    byte_size: Mapped[int | None] = mapped_column(BigInteger)
+
+    manifest_version: Mapped[int | None] = mapped_column(String(20))
+
+    completed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+
+class DeletionLedger(Base):
+    """Deletion ledger reapplied after restoring old backups."""
+
+    __tablename__ = "deletion_ledger"
+
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    user_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), nullable=False, index=True)
+
+    # {"tables": ["workout_sets", ...], "entity_ids": [...], "reason": "user_delete"}
+    scope: Mapped[dict] = mapped_column(JSONB, nullable=False)
+
+    # Minimal identifiers needed to re-apply deletion after restore
+    minimal_identifiers: Mapped[dict | None] = mapped_column(JSONB)
+
+    completed_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())

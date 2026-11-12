@@ -1,0 +1,40 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Exercise content file",
+  "description": "单个动作的内容定义（plan §10.1）。导入后 review_status 恒为 draft，发布需管理员审核。",
+  "type": "object",
+  "required": [
+    "schema_version",
+    "slug",
+    "content_version",
+    "display_name",
+    "movement_pattern",
+    "metric_type",
+    "load_mode"
+  ],
+  "properties": {
+    "schema_version": { "const": 1 },
+    "exercise_id": { "type": "string", "format": "uuid" },
+    "slug": { "type": "string", "pattern": "^[a-z0-9-]+$", "maxLength": 100 },
+    "content_version": { "type": "integer", "minimum": 1 },
+    "display_name": { "type": "string", "minLength": 1, "maxLength": 200 },
+    "aliases": { "type": "array", "items": { "type": "string" } },
+    "movement_pattern": { "type": "string", "maxLength": 50 },
+    "required_equipment": { "type": "array", "items": { "type": "string" } },
+    "metric_type": { "enum": ["reps", "duration"] },
+    "load_mode": {
+      "enum": ["total_external", "per_implement", "bodyweight", "assistance", "band"]
+    },
+    "instructions": { "type": "array", "items": { "type": "string" } },
+    "common_errors": { "type": "array", "items": { "type": "string" } },
+    "approved_alternatives": {
+      "type": "array",
+      "items": { "type": "string" },
+      "description": "替代动作的 slug，必须存在于动作目录"
+    },
+    "evidence_refs": { "type": "array", "items": { "type": "string" } },
+    "review_status": { "enum": ["draft"], "default": "draft" },
+    "fixture": { "type": "boolean", "default": false }
+  },
+  "additionalProperties": false
+}

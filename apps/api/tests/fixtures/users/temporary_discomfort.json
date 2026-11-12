@@ -1,0 +1,23 @@
+{
+  "username": "temp_discomfort",
+  "display_name": "临时不适用户",
+  "profile": {
+    "goal": "力量提升",
+    "training_experience_months": 30,
+    "sessions_per_week": 4,
+    "minutes_per_session": 75,
+    "available_weekdays": [1, 2, 4, 5],
+    "equipment": ["barbell", "bench", "pull-up-bar"],
+    "available_load_increments": ["2.5"]
+  },
+  "statement": "上周硬拉之后腰有点不舒服，这两周先不练硬拉",
+  "expected_behavior": {
+    "fact_kind": "unresolved_discomfort",
+    "must_not": ["解释成腰椎疾病或诊断", "自动永久排除硬拉"],
+    "must": [
+      "保存为未解决不适反馈",
+      "后续相关训练前重新询问恢复情况",
+      "期间相关动作进阶建议被阻止"
+    ]
+  }
+}

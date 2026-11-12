@@ -1,0 +1,22 @@
+schema_version: 1
+slug: barbell-row
+content_version: 1
+display_name: 杠铃划船
+aliases: ["俯身划船", "barbell row"]
+movement_pattern: pull
+required_equipment: ["barbell"]
+metric_type: reps
+load_mode: total_external
+instructions:
+  - "屈髋俯身至躯干接近水平，膝盖微屈，背部平直"
+  - "握距略宽于肩，肩胛先下沉再后缩启动"
+  - "杠铃拉至下腹位置，肘部贴身向后"
+  - "有控制下放，保持躯干角度不变"
+common_errors:
+  - "用躯干摆动借力（变成早安式）"
+  - "拉起时耸肩代替肩胛后缩"
+  - "颈部过度抬头"
+approved_alternatives: ["pull-up"]
+evidence_refs: []
+review_status: draft
+fixture: false

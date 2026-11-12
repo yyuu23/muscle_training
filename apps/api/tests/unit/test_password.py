@@ -2,7 +2,6 @@
 Test password utilities
 """
 
-import pytest
 
 from app.utils.password import hash_password, needs_rehash, verify_password
 

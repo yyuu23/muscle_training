@@ -1,21 +1,36 @@
 """
-Authentication service layer
+Authentication service (plan §9.2)
+
+- Opaque server-side sessions; only SHA-256 token hashes stored.
+- Registration and invite consumption happen in one transaction.
+- Login failures use a uniform error that does not reveal username existence.
 """
 
-from datetime import datetime
+import hashlib
+from datetime import datetime, timedelta
 from uuid import UUID
 
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.db.models.auth import AuthAttempt, AuthSession, Invite, User
+from app.db.models.auth import (
+    AuthAttempt,
+    AuthSession,
+    Invite,
+    PasswordResetToken,
+    User,
+)
 from app.db.models.profile import Profile, UserState
 from app.modules.auth.schemas import LoginRequest, RegisterRequest
 from app.utils.auth import (
     calculate_invite_expiry,
+    calculate_password_reset_expiry,
     calculate_session_expiry,
+    generate_csrf_token,
     generate_invite_code,
+    generate_password_reset_token,
     generate_session_token,
+    hash_token,
     normalize_username,
 )
 from app.utils.password import hash_password, verify_password
@@ -28,75 +43,93 @@ class AuthService:
     def __init__(self, db: AsyncSession):
         self.db = db
 
-    async def check_rate_limit(self, username: str, ip_address: str, window_minutes: int = 15, max_attempts: int = 5) -> bool:
-        """
-        Check if authentication attempts are within rate limit
+    # ------------------------------------------------------------------
+    # Rate limiting
+    # ------------------------------------------------------------------
 
-        Args:
-            username: Username being attempted
-            ip_address: IP address of the attempt
-            window_minutes: Time window in minutes
-            max_attempts: Maximum attempts allowed
-
-        Returns:
-            True if within limit, False if exceeded
-        """
-        cutoff = datetime.now() - timedelta(minutes=window_minutes)
+    async def check_rate_limit(
+        self,
+        username: str,
+        ip_address: str,
+        window_minutes: int = 15,
+        max_attempts: int = 5,
+    ) -> bool:
+        """True if within the allowed attempt count."""
+        cutoff = datetime.now(tz=None) - timedelta(minutes=window_minutes)
+        username_hash = hashlib.sha256(normalize_username(username).encode()).hexdigest()
 
         result = await self.db.execute(
             select(AuthAttempt)
-            .where(AuthAttempt.username_normalized == normalize_username(username))
+            .where(AuthAttempt.username_hash == username_hash)
             .where(AuthAttempt.ip_address == ip_address)
             .where(AuthAttempt.attempted_at > cutoff)
+            .where(AuthAttempt.success.is_(False))
         )
-
         attempts = result.scalars().all()
         return len(attempts) < max_attempts
 
     async def record_auth_attempt(self, username: str, ip_address: str, success: bool) -> None:
-        """Record an authentication attempt"""
-        attempt = AuthAttempt(
-            username_normalized=normalize_username(username),
-            ip_address=ip_address,
-            success=success,
+        username_hash = hashlib.sha256(normalize_username(username).encode()).hexdigest()
+        self.db.add(
+            AuthAttempt(
+                username_hash=username_hash,
+                ip_address=ip_address,
+                success=success,
+            )
         )
-        self.db.add(attempt)
-        await self.db.commit()
 
-    async def validate_invite_code(self, code: str) -> Invite | None:
-        """
-        Validate invite code
+    # ------------------------------------------------------------------
+    # Invites
+    # ------------------------------------------------------------------
 
-        Args:
-            code: Invite code to validate
-
-        Returns:
-            Invite object if valid, None otherwise
-        """
+    async def _get_valid_invite(self, code_hash: str) -> Invite | None:
         result = await self.db.execute(
             select(Invite)
-            .where(Invite.code == code)
+            .where(Invite.code_hash == code_hash)
             .where(Invite.used_at.is_(None))
-            .where(Invite.expires_at > datetime.now())
+            .where(Invite.expires_at > datetime.now(tz=None))
         )
-
         return result.scalar_one_or_none()
 
-    async def register_user(self, request: RegisterRequest, ip_address: str) -> tuple[User, AuthSession]:
-        """
-        Register a new user
+    async def create_invite(self, created_by: UUID, note: str | None = None) -> tuple[Invite, str]:
+        """Create an invite; the raw code is returned exactly once."""
+        code = generate_invite_code()
+        invite = Invite(
+            code_hash=hash_token(code),
+            created_by=created_by,
+            expires_at=calculate_invite_expiry(),
+            note=note,
+        )
+        self.db.add(invite)
+        await self.db.commit()
+        await self.db.refresh(invite)
+        return invite, code
 
-        Args:
-            request: Registration request data
-            ip_address: IP address of the registration
+    async def list_invites(self) -> list[Invite]:
+        result = await self.db.execute(select(Invite).order_by(Invite.created_at.desc()).limit(100))
+        return list(result.scalars().all())
 
-        Returns:
-            Tuple of (User, AuthSession)
+    # ------------------------------------------------------------------
+    # Sessions
+    # ------------------------------------------------------------------
 
-        Raises:
-            ValueError: If validation fails
-        """
-        # Validate input
+    def _new_session(self, user_id: UUID, ip_address: str | None, user_agent: str | None) -> tuple[AuthSession, str]:
+        """Create a session row; return (session, raw_token)."""
+        raw_token = generate_session_token()
+        session = AuthSession(
+            user_id=user_id,
+            token_hash=hash_token(raw_token),
+            csrf_token=generate_csrf_token(),
+            expires_at=calculate_session_expiry(),
+            ip_address=ip_address,
+            user_agent=user_agent,
+        )
+        return session, raw_token
+
+    async def register_user(
+        self, request: RegisterRequest, ip_address: str
+    ) -> tuple[User, AuthSession, str]:
+        """Register with invite; consume invite in the same transaction."""
         valid, error = validate_username(request.username)
         if not valid:
             raise ValueError(error)
@@ -109,21 +142,17 @@ class AuthService:
         if not valid:
             raise ValueError(error)
 
-        # Validate invite code
-        invite = await self.validate_invite_code(request.invite_code)
+        invite = await self._get_valid_invite(hash_token(request.invite_code.strip()))
         if not invite:
-            raise ValueError("Invalid or expired invite code")
+            raise ValueError("邀请码无效或已过期")
 
-        # Check if username already exists
         username_normalized = normalize_username(request.username)
         result = await self.db.execute(
             select(User).where(User.username_normalized == username_normalized)
         )
-
         if result.scalar_one_or_none():
-            raise ValueError("Username already exists")
+            raise ValueError("用户名已存在")
 
-        # Create user
         user = User(
             username_normalized=username_normalized,
             display_name=request.display_name,
@@ -131,109 +160,136 @@ class AuthService:
             role="member",
             status="active",
         )
-
         self.db.add(user)
         await self.db.flush()
 
-        # Mark invite as used
+        # Consume invite in the same transaction as user creation
         invite.used_by = user.id
-        invite.used_at = datetime.now()
+        invite.used_at = datetime.now(tz=None)
 
-        # Create user profile
-        profile = Profile(user_id=user.id, version=1)
-        self.db.add(profile)
+        self.db.add(Profile(user_id=user.id, version=1))
+        self.db.add(UserState(user_id=user.id, planning_revision=1))
 
-        # Create user state
-        user_state = UserState(user_id=user.id, planning_revision=1)
-        self.db.add(user_state)
-
-        # Create session
-        session = AuthSession(
-            user_id=user.id,
-            token=generate_session_token(),
-            expires_at=calculate_session_expiry(),
-            ip_address=ip_address,
-        )
-
+        session, raw_token = self._new_session(user.id, ip_address, None)
         self.db.add(session)
+
         await self.db.commit()
+        await self.db.refresh(user)
+        await self.db.refresh(session)
+        return user, session, raw_token
 
-        return user, session
-
-    async def login_user(self, request: LoginRequest, ip_address: str, user_agent: str | None = None) -> tuple[User, AuthSession]:
-        """
-        Login a user
-
-        Args:
-            request: Login request data
-            ip_address: IP address of the login
-            user_agent: User agent string
-
-        Returns:
-            Tuple of (User, AuthSession)
-
-        Raises:
-            ValueError: If credentials are invalid
-        """
+    async def login_user(
+        self, request: LoginRequest, ip_address: str, user_agent: str | None = None
+    ) -> tuple[User, AuthSession, str]:
+        """Login; uniform error for unknown user and wrong password."""
         username_normalized = normalize_username(request.username)
 
-        # Find user
         result = await self.db.execute(
             select(User)
             .where(User.username_normalized == username_normalized)
             .where(User.status == "active")
         )
-
         user = result.scalar_one_or_none()
 
-        # Verify password
         if not user or not verify_password(request.password, user.password_hash):
             await self.record_auth_attempt(request.username, ip_address, success=False)
-            raise ValueError("Invalid username or password")
+            await self.db.commit()
+            raise ValueError("用户名或密码错误")
 
-        # Create new session
-        session = AuthSession(
-            user_id=user.id,
-            token=generate_session_token(),
-            expires_at=calculate_session_expiry(),
-            ip_address=ip_address,
-            user_agent=user_agent,
-        )
-
+        session, raw_token = self._new_session(user.id, ip_address, user_agent)
         self.db.add(session)
         await self.record_auth_attempt(request.username, ip_address, success=True)
         await self.db.commit()
+        await self.db.refresh(session)
+        return user, session, raw_token
 
-        return user, session
+    async def get_session_by_token(self, raw_token: str) -> AuthSession | None:
+        """Load a live session from a raw cookie token."""
+        result = await self.db.execute(
+            select(AuthSession)
+            .where(AuthSession.token_hash == hash_token(raw_token))
+            .where(AuthSession.revoked_at.is_(None))
+            .where(AuthSession.expires_at > datetime.now(tz=None))
+        )
+        return result.scalar_one_or_none()
 
     async def logout_user(self, session: AuthSession) -> None:
-        """Logout a user by revoking their session"""
-        session.revoked = True
-        session.revoked_at = datetime.now()
+        session.revoked_at = datetime.now(tz=None)
         await self.db.commit()
 
-    async def create_invite(self, created_by: UUID, note: str | None = None) -> Invite:
-        """
-        Create a new invite code
+    async def change_password(
+        self, user: User, current_session: AuthSession, current_password: str, new_password: str
+    ) -> None:
+        """Change password and revoke all other sessions."""
+        if not verify_password(current_password, user.password_hash):
+            raise ValueError("当前密码错误")
 
-        Args:
-            created_by: User ID creating the invite
-            note: Optional note about the invite
+        user.password_hash = hash_password(new_password)
+        await self.db.flush()
 
-        Returns:
-            Created invite object
-        """
-        invite = Invite(
-            code=generate_invite_code(),
-            created_by=created_by,
-            expires_at=calculate_invite_expiry(),
-            note=note,
+        result = await self.db.execute(
+            select(AuthSession)
+            .where(AuthSession.user_id == user.id)
+            .where(AuthSession.revoked_at.is_(None))
+            .where(AuthSession.id != current_session.id)
         )
+        for other in result.scalars().all():
+            other.revoked_at = datetime.now(tz=None)
 
-        self.db.add(invite)
         await self.db.commit()
 
-        return invite
+    # ------------------------------------------------------------------
+    # Password reset
+    # ------------------------------------------------------------------
 
+    async def create_password_reset(self, username: str, created_by: UUID) -> tuple[PasswordResetToken, str]:
+        """Create a one-time reset token (admin CLI)."""
+        result = await self.db.execute(
+            select(User).where(User.username_normalized == normalize_username(username))
+        )
+        user = result.scalar_one_or_none()
+        if not user:
+            raise ValueError("用户不存在")
 
-from datetime import timedelta  # noqa: E402
+        raw_token = generate_password_reset_token()
+        token_row = PasswordResetToken(
+            user_id=user.id,
+            token_hash=hash_token(raw_token),
+            expires_at=calculate_password_reset_expiry(),
+            created_by=created_by,
+        )
+        self.db.add(token_row)
+        await self.db.commit()
+        await self.db.refresh(token_row)
+        return token_row, raw_token
+
+    async def reset_password(self, raw_token: str, new_password: str) -> User:
+        """Reset password with a one-time token; revoke all sessions."""
+        result = await self.db.execute(
+            select(PasswordResetToken)
+            .where(PasswordResetToken.token_hash == hash_token(raw_token))
+            .where(PasswordResetToken.used_at.is_(None))
+            .where(PasswordResetToken.expires_at > datetime.now(tz=None))
+        )
+        token_row = result.scalar_one_or_none()
+        if not token_row:
+            raise ValueError("重置令牌无效或已过期")
+
+        user_result = await self.db.execute(select(User).where(User.id == token_row.user_id))
+        user = user_result.scalar_one_or_none()
+        if not user or user.status != "active":
+            raise ValueError("用户不可用")
+
+        user.password_hash = hash_password(new_password)
+        token_row.used_at = datetime.now(tz=None)
+
+        sessions = await self.db.execute(
+            select(AuthSession)
+            .where(AuthSession.user_id == user.id)
+            .where(AuthSession.revoked_at.is_(None))
+        )
+        for session in sessions.scalars().all():
+            session.revoked_at = datetime.now(tz=None)
+
+        await self.db.commit()
+        return user

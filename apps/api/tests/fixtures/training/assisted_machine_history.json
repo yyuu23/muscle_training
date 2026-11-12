@@ -1,0 +1,24 @@
+{
+  "description": "助力器械历史：负荷是配重抵消的助力值，数字下降可能代表进步",
+  "exercise_slug": "assisted-pull-up",
+  "equipment_label": "assisted-machine",
+  "load_mode": "assistance",
+  "sessions": [
+    {
+      "date": "2026-09-30",
+      "assistance_kg": "25.00",
+      "reps": 8,
+      "note": "助力 25kg，完成 8 次"
+    },
+    {
+      "date": "2026-10-14",
+      "assistance_kg": "15.00",
+      "reps": 8,
+      "note": "助力降到 15kg，仍完成 8 次（进步）"
+    }
+  ],
+  "expected_behavior": {
+    "progression": "不产生数字加重建议（第一版只记录与解释）",
+    "direction": "助力数值下降通常代表进步，不得按常规负荷方向解读"
+  }
+}

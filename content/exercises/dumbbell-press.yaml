@@ -1,0 +1,22 @@
+schema_version: 1
+slug: dumbbell-press
+content_version: 1
+display_name: 哑铃卧推
+aliases: ["哑铃推胸", "dumbbell bench press"]
+movement_pattern: push
+required_equipment: ["dumbbell", "bench"]
+metric_type: reps
+load_mode: per_implement
+instructions:
+  - "仰卧持铃于胸口两侧，掌心可向前或相对"
+  - "下放至大臂与身体约成45-60度，肘部不过度外展"
+  - "推起时哑铃路径略向内收，顶端不完全碰铃"
+  - "注意本动作负荷为每只哑铃的重量，与杠铃总重不可直接比较"
+common_errors:
+  - "把哑铃压向胸口借反弹"
+  - "肘部过度外展至90度压迫肩关节"
+  - "与杠铃卧推的重量直接比较"
+approved_alternatives: ["bench-press"]
+evidence_refs: []
+review_status: draft
+fixture: false

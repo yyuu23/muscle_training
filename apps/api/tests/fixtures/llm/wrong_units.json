@@ -1,0 +1,21 @@
+{
+  "description": "单位混淆：把磅当公斤、把单只当总重的输出",
+  "status": "draft_ready",
+  "answer_markdown": "你上次卧推用了每只哑铃 30，共做了 10 次。",
+  "units_problem": {
+    "actual_history": {"load_kg": "15.00", "load_mode": "per_implement", "note": "每只 15kg"},
+    "model_claim": "每只哑铃 30",
+    "expected_behavior": "展示草稿时必须保留原始单位与计量方式；歧义（磅/公斤、单只/总重）要向用户确认而不是默认解释"
+  },
+  "sets": [
+    {
+      "exercise_name": "哑铃卧推",
+      "set_index": 1,
+      "load_kg": "30",
+      "load_mode": "per_implement",
+      "reps": 10,
+      "ambiguous": true,
+      "ambiguity_note": "30 是磅还是公斤？单只还是总重？"
+    }
+  ]
+}

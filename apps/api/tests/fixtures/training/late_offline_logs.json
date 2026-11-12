@@ -1,0 +1,28 @@
+{
+  "description": "迟到日志：周三复盘已生成后，周日离线记录的训练在周二联网同步",
+  "week": "2026-11-02",
+  "review_generated_at": "2026-11-09T04:00:00+08:00",
+  "review_statistics_at_generation": {
+    "sessions_completed": 2,
+    "total_working_sets": 14
+  },
+  "late_sync_events": [
+    {
+      "event_type": "workout.started",
+      "synced_at": "2026-11-10T08:30:00+08:00",
+      "session_started_at": "2026-11-07T10:00:00+08:00",
+      "in_review_week": true
+    },
+    {
+      "event_type": "set.logged",
+      "synced_at": "2026-11-10T08:30:05+08:00",
+      "performed_at": "2026-11-07T10:12:00+08:00",
+      "in_review_week": true
+    }
+  ],
+  "expected_behavior": {
+    "stale_marking": "旧复盘标记 stale=true",
+    "user_prompt": "打开复盘时提示数据已变化，可重新生成",
+    "regeneration": "重新生成包含迟到的训练，planning_revision 递增"
+  }
+}

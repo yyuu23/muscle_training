@@ -1,0 +1,45 @@
+schema_version: 1
+slug: intermediate-upper-lower-4d
+content_version: 1
+display_name: 中阶上下肢分化（每周四天）
+intended_population: "系统训练 12 个月以上、每周可安排 4 次训练的用户"
+sessions_per_week: 4
+required_intake_fields: ["goal", "training_experience_months", "sessions_per_week", "minutes_per_session", "equipment", "available_load_increments"]
+eligibility:
+  experience_months_min: 12
+  requires_load_calibration: false
+session_slots:
+  - slot_key: upper_push_main
+    movement_pattern: push
+    exercise_count: 1
+  - slot_key: upper_pull_main
+    movement_pattern: pull
+    exercise_count: 1
+  - slot_key: upper_accessory
+    movement_pattern: pull
+    exercise_count: 1
+  - slot_key: lower_squat_main
+    movement_pattern: squat
+    exercise_count: 1
+  - slot_key: lower_hinge_main
+    movement_pattern: hinge
+    exercise_count: 1
+  - slot_key: lower_accessory
+    movement_pattern: isometric
+    exercise_count: 1
+allowed_exercise_ids: []
+allowed_set_ranges: { min: 3, max: 5 }
+allowed_rep_ranges: { min: 5, max: 12 }
+allowed_rest_ranges: { min: 90, max: 240 }
+target_rir_ranges: { min: 1, max: 3 }
+progression_policy: double_progression_v1
+time_estimation_parameters:
+  seconds_per_set: 40
+  warmup_minutes: 10
+  exercise_transition_minutes: 3
+approved_short_session_variants:
+  - label: "时间紧张时"
+    drop_slots: ["upper_accessory", "lower_accessory"]
+evidence_refs: []
+review_status: draft
+fixture: false

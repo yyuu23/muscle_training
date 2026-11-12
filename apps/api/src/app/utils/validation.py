@@ -7,7 +7,7 @@ import re
 
 def validate_username(username: str) -> tuple[bool, str | None]:
     """
-    Validate username format
+    Validate username format (email address)
 
     Args:
         username: Username to validate
@@ -24,9 +24,12 @@ def validate_username(username: str) -> tuple[bool, str | None]:
     if len(username) > 50:
         return False, "Username must be at most 50 characters"
 
-    # Allow alphanumeric, underscore, hyphen, Chinese characters
-    if not re.match(r'^[\w一-鿿-]+$', username):
-        return False, "Username can only contain letters, numbers, underscores, hyphens, and Chinese characters"
+    # Allow email format or alphanumeric with underscore/hyphen
+    email_pattern = r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$'
+    simple_pattern = r'^[\w一-鿿-]+$'
+
+    if not (re.match(email_pattern, username) or re.match(simple_pattern, username)):
+        return False, "Username must be a valid email address or contain only letters, numbers, underscores, hyphens, and Chinese characters"
 
     return True, None
 

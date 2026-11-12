@@ -1,0 +1,129 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  backend:
+    name: Backend (lint + unit + integration)
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: pgvector/pgvector:pg17
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: muscle_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    env:
+      DATABASE_URL: postgresql+asyncpg://postgres:postgres@localhost:5432/muscle_test
+      TEST_DATABASE_URL: postgresql+asyncpg://postgres:postgres@localhost:5432/muscle_test
+      MODEL_PROVIDER: fake
+      PYTHON_ENV: test
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+
+      - name: Install Python dependencies
+        working-directory: apps/api
+        run: uv sync --frozen
+
+      - name: Ruff
+        run: uv run --project apps/api ruff check apps/api
+
+      - name: Migrate empty database
+        run: uv run --project apps/api alembic -c apps/api/alembic.ini upgrade head
+
+      - name: Unit tests
+        working-directory: apps/api
+        run: uv run pytest tests/unit -m "not integration and not live" -q
+
+      - name: Integration tests
+        working-directory: apps/api
+        run: uv run pytest tests/integration -m integration -q
+
+  contract:
+    name: OpenAPI contract freshness
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+
+      - name: Install backend deps
+        working-directory: apps/api
+        run: uv sync --frozen
+
+      - name: Regenerate contract into a temp dir
+        env:
+          MODEL_PROVIDER: fake
+        run: |
+          uv run --project apps/api python -m app.cli export-openapi --output /tmp/openapi.json
+
+      - name: Compare with committed contract
+        run: |
+          if [ ! -f contracts/openapi.json ]; then
+            echo "contracts/openapi.json 不存在；请运行 pnpm contracts:generate 并提交"
+            cp /tmp/openapi.json contracts/openapi.json
+            git diff --exit-code || (echo "::error::契约已过期" && exit 1)
+          else
+            python - "$PWD/contracts/openapi.json" /tmp/openapi.json <<'EOF'
+          import json, sys
+          committed = json.load(open(sys.argv[1], encoding="utf-8"))
+          fresh = json.load(open(sys.argv[2], encoding="utf-8"))
+          if committed != fresh:
+              print("::error::contracts/openapi.json 与当前代码不一致；运行 pnpm contracts:generate 更新")
+              sys.exit(1)
+          print("contract up to date")
+          EOF
+          fi
+
+  frontend:
+    name: Frontend (lint + typecheck + build + unit)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: pnpm
+
+      - name: Install
+        run: pnpm install --frozen-lockfile
+
+      - name: Generate API types
+        run: pnpm --filter @fitness/web generate:types
+
+      - name: Lint
+        run: pnpm --filter @fitness/web lint
+
+      - name: Typecheck
+        run: pnpm --filter @fitness/web typecheck
+
+      - name: Unit tests
+        run: pnpm --filter @fitness/web test -- --run
+
+      - name: Build
+        run: pnpm --filter @fitness/web build

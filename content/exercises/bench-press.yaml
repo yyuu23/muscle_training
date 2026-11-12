@@ -1,0 +1,23 @@
+schema_version: 1
+slug: bench-press
+content_version: 1
+display_name: 卧推
+aliases: ["平板卧推", "bench press"]
+movement_pattern: push
+required_equipment: ["barbell", "bench"]
+metric_type: reps
+load_mode: total_external
+instructions:
+  - "仰卧于凳上，双脚踩实地面，肩胛骨后缩下沉"
+  - "双手握距略宽于肩，手腕保持中立"
+  - "杠铃下放至胸口（约乳头线位置），触胸不反弹"
+  - "推起时肘部路径略向内收，至手臂伸直不锁死"
+common_errors:
+  - "臀部离开凳面"
+  - "手腕后折承重"
+  - "杠铃弹离胸口借力"
+  - "肩胛骨失去张力，肩部前探"
+approved_alternatives: ["dumbbell-press", "dip"]
+evidence_refs: []
+review_status: draft
+fixture: false

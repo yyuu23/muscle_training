@@ -1,178 +1,69 @@
-# 私人健身教练 Agent
+# 私人健身教练应用
 
-一个为 2-5 人小团队设计的 AI 健身教练应用，支持个性化训练计划生成、离线训练记录、知识库管理和周度复盘。
+供本人与少量朋友（2–5 人）使用的私人健身教练应用：建档、生成训练计划、离线记录训练、周复盘、知识库问答。完整规格见 [plan.md](plan.md)。
 
-## 特性
+## 功能边界（第一版不做）
 
-- 📝 **个人档案管理** - 记录身体条件、训练经验、可用器械和时间约束
-- 🎯 **智能计划生成** - 基于个人条件和知识库的 AI 训练计划
-- 📱 **离线优先** - PWA 支持，手机离线记录训练，联网后自动同步
-- 📚 **知识库** - 导入健身视频/文档，自动转写和分块索引
-- 📊 **训练记录** - 详细的组数、重量、次数、RIR 记录
-- 🔄 **周度复盘** - 自动生成训练总结和调整建议
-- 🔐 **数据隔离** - 用户间完全隔离，邀请制注册
-- 💾 **备份恢复** - 加密备份到云端和本地
+动作视频自动纠错、实时摄像头指导、医学诊断、食物照片热量识别、可穿戴设备、小程序/原生 App、支付、本地云端双向同步、模型微调、Redis/Celery/独立向量库/K8s、短信邮件推送。
 
 ## 技术栈
 
-### 后端
-- Python 3.12, FastAPI, SQLAlchemy 2, Alembic
-- PostgreSQL 17 + pgvector
-- 阿里云百炼 (Qwen-Plus, Paraformer, Embedding)
-
-### 前端
-- React, TypeScript, Vite
-- TanStack Query, React Hook Form
-- IndexedDB (Dexie.js), PWA
-
-### 部署
-- Docker Compose
-- Caddy (反向代理)
-- 阿里云 OSS (对象存储)
+Python 3.12 (FastAPI + SQLAlchemy 2 + Alembic) · PostgreSQL 17 + pgvector · React 18 + TypeScript + Vite + Dexie · Qwen（百炼，可选，无密钥时记录功能完全可用）· Docker Compose · age 加密备份
 
 ## 快速开始
 
-### 前置要求
+```powershell
+Set-Location D:\py\muscle_training
+Copy-Item .env.example .env          # 按需修改数据库连接
 
-- Python 3.12+
-- Node.js 24 LTS
-- PostgreSQL 17
-- pnpm 10+
-- uv (Python 包管理器)
+# 1. 安装依赖
+pnpm install --frozen-lockfile
+uv sync --project apps/api --frozen
 
-### 开发环境设置
+# 2. 启动数据库（pgvector/pg17）
+docker compose -f compose.dev.yml up -d db
 
-1. **克隆仓库**
-```bash
-git clone https://github.com/yyuu23/muscle_training.git
-cd muscle_training
+# 3. 数据库迁移（显式步骤，不随启动自动执行）
+uv run --project apps/api alembic -c apps/api/alembic.ini upgrade head
+
+# 4. 创建管理员（密码交互输入）并生成首个邀请码
+uv run --project apps/api python -m app.cli create-admin --username owner
+
+# 5. 一键启动（API + Worker + 前端）或分别启动：
+.\scripts\dev.ps1
+#   uv run --project apps/api uvicorn app.main:app --reload --host 127.0.0.1 --port 8000
+#   uv run --project apps/api python -m app.jobs.worker
+#   pnpm --filter @fitness/web dev
 ```
 
-2. **安装依赖**
-```bash
-# 后端依赖
-cd apps/api
-uv sync
+- 前端：http://localhost:5173 （用邀请码注册）
+- API 文档：http://127.0.0.1:8000/docs
 
-# 前端依赖
-cd ../web
-pnpm install
+## 常用命令
+
+```powershell
+pnpm contracts:generate    # 导出 OpenAPI 契约 + 生成前端类型
+pnpm contracts:check       # 校验契约是否过期
+pnpm lint / typecheck      # 前端检查
+pnpm test:web              # 前端单元测试
+pnpm test:e2e              # Playwright
+uv run --project apps/api ruff check apps/api
+uv run --project apps/api pytest apps/api/tests/unit
+uv run --project apps/api pytest apps/api/tests/integration   # 需 TEST_DATABASE_URL
 ```
 
-3. **配置环境变量**
-```bash
-cp .env.example .env
-# 编辑 .env 文件，填入数据库连接和 API 密钥
-```
-
-4. **启动开发环境**
-```bash
-# 启动 PostgreSQL 和其他服务
-docker-compose -f compose.dev.yml up -d
-
-# 运行数据库迁移
-cd apps/api
-uv run alembic upgrade head
-
-# 启动后端
-uv run uvicorn app.main:app --reload
-
-# 启动前端 (新终端)
-cd apps/web
-pnpm dev
-```
-
-5. **访问应用**
-- 前端: http://localhost:5173
-- 后端 API: http://localhost:8000
-- API 文档: http://localhost:8000/docs
-
-## 项目结构
-
-```
-muscle_training/
-├── apps/
-│   ├── api/              # FastAPI 后端
-│   │   ├── src/app/      # 应用代码
-│   │   ├── migrations/   # Alembic 数据库迁移
-│   │   └── tests/        # 后端测试
-│   └── web/              # React 前端
-│       ├── src/          # 前端代码
-│       └── tests/        # 前端测试
-├── contracts/            # OpenAPI 契约
-├── content/              # 动作和模板内容
-├── evals/                # Agent 评测用例
-├── scripts/              # 构建和维护脚本
-├── deploy/               # 部署配置
-└── docs/                 # 文档
-```
-
-## 开发工作流
-
-### 运行测试
-```bash
-# 后端测试
-cd apps/api
-uv run pytest
-
-# 前端测试
-cd apps/web
-pnpm test
-
-# E2E 测试
-pnpm test:e2e
-```
-
-### 代码检查
-```bash
-# Python (Ruff)
-cd apps/api
-uv run ruff check .
-uv run ruff format .
-
-# TypeScript
-cd apps/web
-pnpm lint
-```
-
-### 数据库迁移
-```bash
-cd apps/api
-
-# 创建新迁移
-uv run alembic revision --autogenerate -m "描述"
-
-# 应用迁移
-uv run alembic upgrade head
-
-# 回滚迁移
-uv run alembic downgrade -1
-```
-
-## 部署
-
-详见 [部署文档](docs/deployment.md)
-
-## 许可
-
-本项目为个人使用项目，暂不对外开放。
+CLI（`python -m app.cli --help`）：`create-admin / create-invite / create-password-reset / import-content / validate-content / export-openapi / backup / verify-backup / restore / check-production-config`
 
 ## 文档
 
-- [架构设计](docs/architecture.md)
-- [领域规则](docs/domain-rules.md)
-- [数据模型](docs/data-model.md)
-- [API 契约](docs/api-contract.md)
-- [Agent 工作流](docs/agent-workflows.md)
-- [离线同步](docs/offline-sync.md)
-- [知识库导入](docs/knowledge-ingestion.md)
-- [备份恢复](docs/backup-and-restore.md)
+- [docs/architecture.md](docs/architecture.md) · [docs/domain-rules.md](docs/domain-rules.md) · [docs/api-contract.md](docs/api-contract.md)
+- [docs/offline-sync.md](docs/offline-sync.md) · [docs/agent-workflows.md](docs/agent-workflows.md) · [docs/knowledge-ingestion.md](docs/knowledge-ingestion.md)
+- [docs/content-review.md](docs/content-review.md) · [docs/backup-and-restore.md](docs/backup-and-restore.md) · [docs/privacy-and-retention.md](docs/privacy-and-retention.md)
+- [docs/acceptance.md](docs/acceptance.md) — 验收状态逐项标注
+- [AGENTS.md](AGENTS.md) — 后续 AI 必须遵守的规则
 
-## 预算控制
+## 部署与恢复
 
-目标: 100-300 元/月 (不含开发人工成本)
-- 服务器: 60-120 元
-- 模型 API: 20-80 元
-- 存储备份: 5-20 元
-- 域名: 5-10 元
-- 其他: 10-30 元
+生产部署（Caddy + API + Worker + PostgreSQL + 备份）见 [docs/deployment.md](docs/deployment.md) 与 [compose.prod.yml](compose.prod.yml)。备份恢复流程见 [docs/backup-and-restore.md](docs/backup-and-restore.md)；恢复工具默认拒绝非空目标数据库。
+
+当前实施状态见 [PROGRESS.md](PROGRESS.md)。

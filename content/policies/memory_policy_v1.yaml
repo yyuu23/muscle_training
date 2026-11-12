@@ -1,0 +1,45 @@
+# 记忆策略（plan §5.3 / §7.11）
+policy_version: 1
+
+fact_kinds:
+  - exercise_preference
+  - exercise_exclusion
+  - equipment_preference
+  - diet_preference
+  - allergy_report
+  - training_limitation
+  - unresolved_discomfort
+
+provenance_rules:
+  user_statement:
+    can_become_confirmed_directly: true
+    note: "明确表单输入直接写入，不增加多余确认"
+  reported_professional_advice:
+    can_become_confirmed_directly: false
+    note: "转述的专业建议保存为候选，用户确认后写入且来源保持转述"
+  reported_third_party:
+    can_become_confirmed_directly: false
+    note: "他人转述（如朋友的说法）不得自动成为已确认身体结论；不解释成诊断"
+  model_inference:
+    can_become_confirmed_directly: false
+    note: "模型推断永远需要用户确认；推断来源标注保持不变"
+
+resolution:
+  statuses: [pending, accepted, rejected, superseded]
+  accept_action: "写入 profile_facts 并替代同 key 旧事实"
+  supersede_keeps_provenance: true
+
+planning_revision:
+  increments_on:
+    - "已确认限制或偏好变化"
+    - "训练相关档案修改"
+    - "身体观测更新"
+    - "训练记录新增、更正或删除"
+    - "生效计划改变"
+  never_increments_on:
+    - "普通聊天"
+    - "备份下载"
+
+exclusions:
+  - "体重不存为长期文本记忆（属于测量表）"
+  - "临时不适保存为 unresolved_discomfort，后续相关训练前重新询问"

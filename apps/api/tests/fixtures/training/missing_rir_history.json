@@ -1,0 +1,27 @@
+{
+  "description": "缺 RIR 的历史：次数达标但无法确认进阶条件，应阻止加重建议",
+  "exercise_slug": "squat",
+  "equipment_label": "barbell",
+  "load_mode": "total_external",
+  "target": {"working_sets": 3, "reps_min": 8, "reps_max": 10, "rir_condition": ">=2"},
+  "sessions": [
+    {
+      "date": "2026-10-20",
+      "working_sets_recorded": 3,
+      "top_load_kg": "60.00",
+      "reps_top": 10,
+      "rir": null
+    },
+    {
+      "date": "2026-10-27",
+      "working_sets_recorded": 3,
+      "top_load_kg": "60.00",
+      "reps_top": 10,
+      "rir": null
+    }
+  ],
+  "expected_progression": {
+    "kind": "hold",
+    "reason_contains": "RIR"
+  }
+}

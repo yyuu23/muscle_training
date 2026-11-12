@@ -1,0 +1,22 @@
+schema_version: 1
+slug: dip
+content_version: 1
+display_name: 双杠臂屈伸
+aliases: ["双杠", "dip"]
+movement_pattern: push
+required_equipment: ["dip-bar"]
+metric_type: reps
+load_mode: bodyweight
+instructions:
+  - "双杠直臂支撑，肩胛下沉，身体略前倾"
+  - "屈肘下放至上臂与地面平行（前倾多偏胸、竖直多偏三头）"
+  - "肩部有不适感应减小幅度，不要过度下沉"
+  - "推起至手臂伸直不锁死"
+common_errors:
+  - "下沉过深导致肩前侧牵拉痛"
+  - "耸肩含胸"
+  - "用蹬腿借力"
+approved_alternatives: ["bench-press"]
+evidence_refs: []
+review_status: draft
+fixture: false

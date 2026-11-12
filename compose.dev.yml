@@ -1,5 +1,5 @@
 services:
-  postgres:
+  db:
     image: pgvector/pgvector:pg17
     container_name: muscle_training_postgres_dev
     environment:
@@ -26,18 +26,19 @@ services:
     container_name: muscle_training_api_dev
     environment:
       - PYTHON_ENV=development
-      - DATABASE_URL=postgresql+asyncpg://muscle_training:dev_password@postgres:5432/muscle_training_dev
+      - DATABASE_URL=postgresql+asyncpg://muscle_training:dev_password@db:5432/muscle_training_dev
       - STORAGE_BACKEND=filesystem
       - STORAGE_BASE_PATH=/app/storage
     env_file:
-      - .env
+      - path: .env
+        required: false
     ports:
       - "8000:8000"
     volumes:
       - ./apps/api/src:/app/src:ro
       - ./storage:/app/storage
     depends_on:
-      postgres:
+      db:
         condition: service_healthy
     command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
     healthcheck:
@@ -54,16 +55,17 @@ services:
     container_name: muscle_training_worker_dev
     environment:
       - PYTHON_ENV=development
-      - DATABASE_URL=postgresql+asyncpg://muscle_training:dev_password@postgres:5432/muscle_training_dev
+      - DATABASE_URL=postgresql+asyncpg://muscle_training:dev_password@db:5432/muscle_training_dev
       - STORAGE_BACKEND=filesystem
       - STORAGE_BASE_PATH=/app/storage
     env_file:
-      - .env
+      - path: .env
+        required: false
     volumes:
       - ./apps/api/src:/app/src:ro
       - ./storage:/app/storage
     depends_on:
-      postgres:
+      db:
         condition: service_healthy
     command: python -m app.jobs.worker
 

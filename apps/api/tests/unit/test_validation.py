@@ -2,7 +2,6 @@
 Test validation utilities
 """
 
-import pytest
 
 from app.utils.validation import validate_display_name, validate_password, validate_username
 
@@ -41,7 +40,7 @@ class TestUsernameValidation:
         """Test username with invalid characters"""
         valid, error = validate_username("test@user")
         assert valid is False
-        assert "can only contain" in error
+        assert "letters, numbers, underscores, hyphens, and Chinese characters" in error
 
 
 class TestPasswordValidation:

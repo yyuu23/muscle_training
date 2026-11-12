@@ -1,0 +1,28 @@
+{
+  "description": "引用不存在的动作 slug，领域校验必须拒绝",
+  "title": "包含幻觉动作的计划",
+  "goal": "力量",
+  "template_slug": "beginner-fullbody-3d",
+  "days": [
+    {
+      "day_key": "day_1",
+      "weekday": 1,
+      "estimated_minutes": 50,
+      "exercises": [
+        {
+          "exercise_slug": "quantum-squat-inator-9000",
+          "working_sets": 3,
+          "reps_min": 8,
+          "reps_max": 12,
+          "duration_seconds": null,
+          "rest_seconds": 120,
+          "target_rir": 2
+        }
+      ]
+    }
+  ],
+  "expected_validation": {
+    "error_code": "MODEL_OUTPUT_INVALID",
+    "reason_contains": "不在已审核目录"
+  }
+}

@@ -1,0 +1,12 @@
+{
+  "description": "编造引用：chunk_id 不在本次检索结果中",
+  "status": "answered",
+  "answer_markdown": "根据资料，深蹲时膝盖不应内扣。",
+  "citations": [
+    {"chunk_id": "00000000-0000-0000-0000-00000000dead", "quote": "膝盖不要内扣"}
+  ],
+  "expected_validation": {
+    "citation_check": "引用不在本次检索结果中（可能是编造）",
+    "outcome": "触发一次修复；修复后仍无效则整体拒绝"
+  }
+}

@@ -2,11 +2,27 @@
 Database models package
 """
 
-from app.db.models.auth import AuthAttempt, AuthSession, Invite, User
+from app.db.models.auth import (
+    AuthAttempt,
+    AuthSession,
+    Invite,
+    PasswordResetToken,
+    User,
+)
 from app.db.models.catalog import Exercise, PlanVersion, TrainingTemplate
-from app.db.models.memory import Conversation, Message, WeeklyReview
+from app.db.models.knowledge import Asset, KnowledgeChunk, KnowledgeSource, SourceRevision
 from app.db.models.nutrition import MealLog, Measurement
-from app.db.models.operations import Asset, Job, KnowledgeChunk, KnowledgeSource, ModelRun, SourceRevision, SyncEvent
+from app.db.models.operations import (
+    AuditEvent,
+    BackupRun,
+    Conversation,
+    DeletionLedger,
+    Job,
+    Message,
+    ModelRun,
+    SyncEvent,
+    WeeklyReview,
+)
 from app.db.models.profile import MemoryCandidate, Profile, ProfileFact, UserState
 from app.db.models.training import RecordRevision, SessionExercise, WorkoutSession, WorkoutSet
 
@@ -15,6 +31,7 @@ __all__ = [
     "User",
     "AuthSession",
     "Invite",
+    "PasswordResetToken",
     "AuthAttempt",
     # Profile
     "Profile",
@@ -33,15 +50,19 @@ __all__ = [
     # Nutrition
     "Measurement",
     "MealLog",
-    # Knowledge & Operations
+    # Knowledge
     "KnowledgeSource",
     "SourceRevision",
     "KnowledgeChunk",
     "Asset",
+    # Operations
     "Job",
     "SyncEvent",
     "ModelRun",
-    # Memory & Conversation
+    "AuditEvent",
+    "BackupRun",
+    "DeletionLedger",
+    # Conversation & Review
     "Conversation",
     "Message",
     "WeeklyReview",

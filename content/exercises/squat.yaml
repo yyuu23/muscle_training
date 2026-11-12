@@ -1,0 +1,24 @@
+schema_version: 1
+slug: squat
+content_version: 1
+display_name: 深蹲
+aliases: ["颈后深蹲", "杠铃深蹲", "squat"]
+movement_pattern: squat
+required_equipment: ["barbell"]
+metric_type: reps
+load_mode: total_external
+instructions:
+  - "杠铃置于斜方肌上部，双手握稳，肘部向下收紧"
+  - "双脚与肩同宽或略宽，脚尖微微外展"
+  - "吸气收紧核心，屈髋屈膝下蹲至大腿至少与地面平行（在活动度允许范围内）"
+  - "全程保持躯干角度稳定，膝盖方向与脚尖一致"
+  - "脚掌推地站起，髋膝同时伸展至起始位置"
+common_errors:
+  - "膝盖内扣"
+  - "脚跟离地、重心前移到脚尖"
+  - "下蹲深度不足就以大重量硬撑"
+  - "起身时腰椎过度前倾（好晨式）"
+approved_alternatives: ["dumbbell-press"]
+evidence_refs: []
+review_status: draft
+fixture: false

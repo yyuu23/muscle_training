@@ -1,0 +1,46 @@
+# 合成测试动作（fixture=true，生产环境自动排除）
+exercises:
+  - schema_version: 1
+    slug: fixture-goblet-squat
+    content_version: 1
+    display_name: "[测试] 高脚杯深蹲"
+    movement_pattern: squat
+    required_equipment: ["dumbbell"]
+    metric_type: reps
+    load_mode: total_external
+    instructions: ["双手托哑铃于胸前", "下蹲至深度可控制的位置", "推地站起"]
+    common_errors: ["哑铃远离身体"]
+    approved_alternatives: []
+    evidence_refs: []
+    review_status: draft
+    fixture: true
+
+  - schema_version: 1
+    slug: fixture-band-row
+    content_version: 1
+    display_name: "[测试] 弹力带划船"
+    movement_pattern: pull
+    required_equipment: ["band"]
+    metric_type: reps
+    load_mode: band
+    instructions: ["弹力带固定于前方", "肩胛后缩拉向腹部", "有控制回放"]
+    common_errors: ["耸肩借力"]
+    approved_alternatives: []
+    evidence_refs: []
+    review_status: draft
+    fixture: true
+
+  - schema_version: 1
+    slug: fixture-plank
+    content_version: 1
+    display_name: "[测试] 平板支撑"
+    movement_pattern: isometric
+    required_equipment: []
+    metric_type: duration
+    load_mode: bodyweight
+    instructions: ["肘撑保持直线", "收紧核心自然呼吸"]
+    common_errors: ["塌腰"]
+    approved_alternatives: []
+    evidence_refs: []
+    review_status: draft
+    fixture: true

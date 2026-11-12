@@ -1,0 +1,22 @@
+schema_version: 1
+slug: pull-up
+content_version: 1
+display_name: 引体向上
+aliases: ["正手引体", "pull up"]
+movement_pattern: pull
+required_equipment: ["pull-up-bar"]
+metric_type: reps
+load_mode: bodyweight
+instructions:
+  - "正手握杠略宽于肩，肩胛先下沉激活背阔肌"
+  - "拉起时想象肘部向下向后，胸口靠近单杠"
+  - "下巴过杠后在顶部保持控制，不做摆动"
+  - "下放到手臂伸直但肩胛保持张力"
+common_errors:
+  - "蹬腿摆动借力（kipping，除非刻意安排）"
+  - "半程幅度，下放不到底"
+  - "耸肩用手臂硬拉"
+approved_alternatives: ["barbell-row"]
+evidence_refs: []
+review_status: draft
+fixture: false

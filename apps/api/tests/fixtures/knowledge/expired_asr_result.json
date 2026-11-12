@@ -1,0 +1,13 @@
+{
+  "task_id": "fixture-expired-001",
+  "description": "已过期的转写结果 URL。系统必须在完成后立即下载到自己存储；此文件模拟结果 URL 已失效的情形，正确行为是重新触发转写或报错，而不是静默丢失已入库内容。",
+  "status": "SUCCEEDED",
+  "transcription_url": "https://dashscope-example.aliyuncs.com/temp/results/expired-001.json?Expires=1760000000&Signature=expired",
+  "url_expires_at": "2025-10-09T00:00:00Z",
+  "notes": "此 URL 已过期。若系统只保存了此 URL 而未及时下载原文，知识点将无法恢复——这正是必须立即下载并持久保存原始转写的原因。",
+  "expected_behavior": [
+    "转写完成后立即下载结果到自己存储",
+    "不把临时 URL 当作持久地址保存",
+    "URL 过期后已入库的 chunks 不受影响"
+  ]
+}

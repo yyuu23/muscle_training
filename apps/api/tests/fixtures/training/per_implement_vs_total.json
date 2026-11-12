@@ -1,0 +1,26 @@
+{
+  "description": "同动作不同计量方式：哑铃单只重量 vs 总重量，负荷不可直接比较",
+  "exercise_slug": "dumbbell-press",
+  "sessions": [
+    {
+      "date": "2026-10-15",
+      "equipment_label": "dumbbell",
+      "load_mode": "per_implement",
+      "load_kg": "15.00",
+      "load_note": "每只哑铃 15kg（合计 30kg）",
+      "reps": 10
+    },
+    {
+      "date": "2026-10-22",
+      "equipment_label": "dumbbell",
+      "load_mode": "total_external",
+      "load_kg": "30.00",
+      "load_note": "记录成了总重量 30kg",
+      "reps": 10
+    }
+  ],
+  "expected_behavior": {
+    "load_comparison": "两次记录不可直接比较，不得据此产生加重建议",
+    "ui_hint": "应提示用户统一计量方式（单只 vs 总重）"
+  }
+}

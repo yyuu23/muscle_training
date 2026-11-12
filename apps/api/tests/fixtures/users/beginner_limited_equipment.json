@@ -1,0 +1,26 @@
+{
+  "username": "beginner_limited",
+  "display_name": "器械有限的新手",
+  "profile": {
+    "goal": "建立基础力量",
+    "height_cm": 172,
+    "training_experience_months": 2,
+    "sessions_per_week": 3,
+    "minutes_per_session": 45,
+    "available_weekdays": [1, 3, 5],
+    "equipment": ["dumbbell", "bench"],
+    "available_load_increments": ["1.25"]
+  },
+  "facts": [
+    {
+      "kind": "equipment_preference",
+      "fact_key": "dumbbell",
+      "value": "家里只有一对可调哑铃和一张凳子",
+      "provenance": "user_statement"
+    }
+  ],
+  "expected_plan_behavior": {
+    "must_use": "只用哑铃类动作",
+    "forbidden": ["barbell 类动作", "超出 45 分钟的安排", "周末训练日"]
+  }
+}

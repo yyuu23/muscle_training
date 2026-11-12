@@ -1,0 +1,19 @@
+{
+  "username": "incomplete_profile",
+  "display_name": "档案不完整用户",
+  "profile": {
+    "goal": null,
+    "height_cm": null,
+    "training_experience_months": null,
+    "sessions_per_week": null,
+    "minutes_per_session": null,
+    "available_weekdays": null,
+    "equipment": null,
+    "available_load_increments": null
+  },
+  "expected_behavior": {
+    "missing_fields": ["goal", "training_experience_months", "sessions_per_week", "minutes_per_session", "equipment"],
+    "plan_generation": "返回 INSUFFICIENT_PROFILE 并列出缺失字段",
+    "recording": "训练记录、体重、饮食功能不受影响"
+  }
+}
