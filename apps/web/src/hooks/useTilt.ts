@@ -28,9 +28,10 @@ export function useTilt<T extends HTMLElement>(maxDeg = 4) {
     };
     check();
     window.addEventListener('resize', check);
+    const animState = anim.current;
     return () => {
       window.removeEventListener('resize', check);
-      cancelAnimationFrame(anim.current.raf);
+      cancelAnimationFrame(animState.raf);
     };
   }, []);
 
