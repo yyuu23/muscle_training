@@ -12,7 +12,7 @@ from functools import lru_cache
 from pathlib import Path
 from typing import Literal
 
-from pydantic import Field, PostgresDsn, field_validator
+from pydantic import AliasChoices, Field, PostgresDsn, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -39,7 +39,12 @@ class Settings(BaseSettings):
     api_reload: bool = False
 
     # Security
-    secret_key: str = Field(default_factory=lambda: secrets.token_urlsafe(32))
+    # SECRET_KEY is canonical; APP_SECRET is the name documented in
+    # plan.md §11.1 / .env.example — both are accepted.
+    secret_key: str = Field(
+        default_factory=lambda: secrets.token_urlsafe(32),
+        validation_alias=AliasChoices("SECRET_KEY", "APP_SECRET"),
+    )
     session_expire_days: int = 7
     invite_code_expire_hours: int = 72
 
@@ -72,10 +77,24 @@ class Settings(BaseSettings):
     dashscope_base_url: str = "https://dashscope.aliyuncs.com/compatible-mode/v1"
 
     # Model Configuration
-    default_chat_model: str = "qwen-plus-2025-12-01"
-    default_embedding_model: str = "qwen3.7-text-embedding"
-    default_asr_model: str = "paraformer-v2"
-    embedding_dimension: int = 1024
+    # DEFAULT_*_MODEL is canonical; the shorter CHAT_MODEL / EMBEDDING_MODEL /
+    # ASR_MODEL names come from plan.md §11.1 and stay accepted.
+    default_chat_model: str = Field(
+        default="qwen-plus-2025-12-01",
+        validation_alias=AliasChoices("DEFAULT_CHAT_MODEL", "CHAT_MODEL"),
+    )
+    default_embedding_model: str = Field(
+        default="qwen3.7-text-embedding",
+        validation_alias=AliasChoices("DEFAULT_EMBEDDING_MODEL", "EMBEDDING_MODEL"),
+    )
+    default_asr_model: str = Field(
+        default="paraformer-v2",
+        validation_alias=AliasChoices("DEFAULT_ASR_MODEL", "ASR_MODEL"),
+    )
+    embedding_dimension: int = Field(
+        default=1024,
+        validation_alias=AliasChoices("EMBEDDING_DIMENSION", "EMBEDDING_DIMENSIONS"),
+    )
 
     # Model Budget (RMB per month)
     monthly_ai_budget_cny: float = 100.0
@@ -89,22 +108,45 @@ class Settings(BaseSettings):
     max_context_tokens: int = 12000
 
     # Storage
-    storage_backend: Literal["filesystem", "oss"] = "filesystem"
-    storage_base_path: Path = Field(default=Path("./storage"))
+    # STORAGE_BACKEND / STORAGE_BASE_PATH canonical; STORAGE_PROVIDER /
+    # LOCAL_STORAGE_ROOT are the plan.md §11.1 names.
+    storage_backend: Literal["filesystem", "oss"] = Field(
+        default="filesystem",
+        validation_alias=AliasChoices("STORAGE_BACKEND", "STORAGE_PROVIDER"),
+    )
+    storage_base_path: Path = Field(
+        default=Path("./storage"),
+        validation_alias=AliasChoices("STORAGE_BASE_PATH", "LOCAL_STORAGE_ROOT"),
+    )
 
     # Alibaba Cloud OSS
+    # OSS_BUCKET_NAME / OSS_BACKUP_BUCKET_NAME canonical; OSS_BUCKET /
+    # BACKUP_BUCKET are the plan.md §11.1 names.
     oss_region: str | None = None
     oss_endpoint: str | None = None
     oss_access_key_id: str | None = None
     oss_access_key_secret: str | None = None
-    oss_bucket_name: str | None = None
-    oss_backup_bucket_name: str | None = None
+    oss_bucket_name: str | None = Field(
+        default=None,
+        validation_alias=AliasChoices("OSS_BUCKET_NAME", "OSS_BUCKET"),
+    )
+    oss_backup_bucket_name: str | None = Field(
+        default=None,
+        validation_alias=AliasChoices("OSS_BACKUP_BUCKET_NAME", "BACKUP_BUCKET"),
+    )
 
     # Media Processing
     ffmpeg_path: str = "ffmpeg"
     ffprobe_path: str = "ffprobe"
-    max_video_size_mb: int = 500
-    max_video_duration_minutes: int = 60
+    # MAX_VIDEO_* canonical; MEDIA_MAX_* are the plan.md §11.1 names.
+    max_video_size_mb: int = Field(
+        default=500,
+        validation_alias=AliasChoices("MAX_VIDEO_SIZE_MB", "MEDIA_MAX_SIZE_MB"),
+    )
+    max_video_duration_minutes: int = Field(
+        default=60,
+        validation_alias=AliasChoices("MAX_VIDEO_DURATION_MINUTES", "MEDIA_MAX_DURATION_MINUTES"),
+    )
     max_text_size_mb: int = 5
     temp_media_retention_days: int = 7
     chat_retention_days: int = 90
