@@ -49,11 +49,13 @@ async def test_upgrade_head_builds_full_schema(migrated_db_url):
             assert head == "b2r3l4s5c7d8", f"alembic_version 应为最新迁移，实际 {head}"
 
             # RLS enabled + forced on every protected table
+            # (pg_tables dropped forcerowsecurity in PG17; use pg_class)
             rls = {
                 row[0]
                 for row in (await conn.execute(text(
-                    "SELECT tablename FROM pg_tables "
-                    "WHERE schemaname = 'public' AND rowsecurity AND forcerowsecurity"
+                    "SELECT c.relname FROM pg_class c "
+                    "JOIN pg_namespace n ON n.oid = c.relnamespace "
+                    "WHERE n.nspname = 'public' AND c.relrowsecurity AND c.relforcerowsecurity"
                 ))).fetchall()
             }
             assert RLS_TABLES <= rls, f"缺少 RLS 的表: {RLS_TABLES - rls}"
@@ -88,8 +90,9 @@ async def test_rls_layer_reversible(migrated_db_url):
     try:
         async with engine.connect() as conn:
             still_forced = (await conn.execute(text(
-                "SELECT count(*) FROM pg_tables "
-                "WHERE schemaname = 'public' AND rowsecurity AND forcerowsecurity"
+                "SELECT count(*) FROM pg_class c "
+                "JOIN pg_namespace n ON n.oid = c.relnamespace "
+                "WHERE n.nspname = 'public' AND c.relrowsecurity AND c.relforcerowsecurity"
             ))).scalar()
             assert still_forced == 0, "downgrade 后不应再有 FORCE RLS 表"
     finally:
@@ -100,8 +103,9 @@ async def test_rls_layer_reversible(migrated_db_url):
     try:
         async with engine.connect() as conn:
             forced = (await conn.execute(text(
-                "SELECT count(*) FROM pg_tables "
-                "WHERE schemaname = 'public' AND rowsecurity AND forcerowsecurity"
+                "SELECT count(*) FROM pg_class c "
+                "JOIN pg_namespace n ON n.oid = c.relnamespace "
+                "WHERE n.nspname = 'public' AND c.relrowsecurity AND c.relforcerowsecurity"
             ))).scalar()
             assert forced >= len(RLS_TABLES)
     finally:

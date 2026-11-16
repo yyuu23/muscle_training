@@ -7,7 +7,7 @@ Authentication utilities (plan §9.2)
 
 import hashlib
 import secrets
-from datetime import datetime, timedelta
+from datetime import UTC, datetime, timedelta
 
 from app.config import get_settings
 
@@ -46,17 +46,17 @@ def generate_password_reset_token() -> str:
 
 def calculate_session_expiry(now: datetime | None = None) -> datetime:
     """Session absolute expiry (default 7 days)."""
-    base = now or datetime.now(tz=None)
+    base = now or datetime.now(UTC)
     return base + timedelta(days=settings.session_expire_days)
 
 
 def calculate_invite_expiry(now: datetime | None = None) -> datetime:
     """Invite validity: 72 hours."""
-    base = now or datetime.now(tz=None)
+    base = now or datetime.now(UTC)
     return base + timedelta(hours=settings.invite_code_expire_hours)
 
 
 def calculate_password_reset_expiry(now: datetime | None = None) -> datetime:
     """Password reset token validity: 24 hours."""
-    base = now or datetime.now(tz=None)
+    base = now or datetime.now(UTC)
     return base + timedelta(hours=24)

@@ -7,7 +7,7 @@ Auth dependencies (plan §9.2)
 """
 
 import hmac
-from datetime import datetime
+from datetime import UTC, datetime
 from typing import Annotated
 
 from fastapi import Depends, Header, HTTPException, Request, status
@@ -88,7 +88,7 @@ async def get_current_session(
                 detail={"code": ErrorCode.ACCESS_DENIED, "message": "缺少或错误的 CSRF 令牌"},
             )
 
-    session.last_used_at = datetime.now(tz=None)
+    session.last_used_at = datetime.now(UTC)
     return session
 
 

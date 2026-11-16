@@ -6,7 +6,7 @@ Workout service (plan §5.5 / §6.3)
 - Skipped never fakes zero reps; unknown values stay null.
 """
 
-from datetime import datetime
+from datetime import UTC, datetime
 from uuid import UUID
 
 from sqlalchemy import delete, select
@@ -184,7 +184,7 @@ class WorkoutService:
                 session.completed_at = None
             session.status = status
             if status == "completed" and session.completed_at is None:
-                session.completed_at = datetime.now(tz=None)
+                session.completed_at = datetime.now(UTC)
             changed.append("status")
 
         if not changed:

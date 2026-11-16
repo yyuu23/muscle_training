@@ -4,7 +4,7 @@ lease is requeued and claimable by another worker; jobs past
 max_attempts land in needs_attention instead.
 """
 
-from datetime import datetime, timedelta
+from datetime import UTC, datetime, timedelta
 
 import pytest
 from sqlalchemy import update
@@ -31,7 +31,7 @@ async def test_expired_lease_is_requeued_and_reclaimed(db):
     await db.execute(
         update(Job)
         .where(Job.id == job.id)
-        .values(lease_expires_at=datetime.now(tz=None) - timedelta(seconds=1))
+        .values(lease_expires_at=datetime.now(UTC) - timedelta(seconds=1))
     )
     await db.commit()
 
@@ -54,7 +54,7 @@ async def test_attempts_exhausted_goes_to_needs_attention(db):
         await db.execute(
             update(Job)
             .where(Job.id == job.id)
-            .values(lease_expires_at=datetime.now(tz=None) - timedelta(seconds=1))
+            .values(lease_expires_at=datetime.now(UTC) - timedelta(seconds=1))
         )
         await db.commit()
         await reclaim_expired_jobs(db)

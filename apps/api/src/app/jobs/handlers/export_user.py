@@ -6,7 +6,7 @@ Builds a JSON export of all user data, stores it with retention_class=export
 """
 
 import json
-from datetime import datetime, timedelta
+from datetime import UTC, datetime, timedelta
 from uuid import UUID, uuid4
 
 from sqlalchemy import select
@@ -34,7 +34,7 @@ async def handle_user_export(db: AsyncSession, job) -> None:
 
     try:
         export = {
-            "exported_at": datetime.now(tz=None).isoformat(),
+            "exported_at": datetime.now(UTC).isoformat(),
             "user_id": str(user_id),
             "profile": await _all(Profile),
             "profile_facts": await _all(ProfileFact),
@@ -64,7 +64,7 @@ async def handle_user_export(db: AsyncSession, job) -> None:
         export = {table: clean(rows) for table, rows in export.items() if table not in ("exported_at", "user_id")}
 
         payload = json.dumps(
-            {"exported_at": datetime.now(tz=None).isoformat(), "user_id": str(user_id), **export},
+            {"exported_at": datetime.now(UTC).isoformat(), "user_id": str(user_id), **export},
             ensure_ascii=False,
             default=str,
         ).encode("utf-8")
@@ -73,7 +73,7 @@ async def handle_user_export(db: AsyncSession, job) -> None:
         object_key = f"exports/{user_id}/{uuid4()}.json"
         await storage.put(object_key, payload, "application/json")
 
-        expires_at = datetime.now(tz=None) + timedelta(hours=EXPORT_RETENTION_HOURS)
+        expires_at = datetime.now(UTC) + timedelta(hours=EXPORT_RETENTION_HOURS)
         db.add(
             Asset(
                 owner_user_id=user_id,

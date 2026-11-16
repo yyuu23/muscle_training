@@ -20,7 +20,6 @@ Two schema flavors:
   database (full migration chain incl. RLS policies + grants).
 """
 
-import asyncio
 import os
 import uuid
 from pathlib import Path
@@ -56,8 +55,12 @@ def _url_with_db(url: str, dbname: str) -> str:
 _test_db_ready = False
 
 
-def _ensure_test_database() -> None:
-    """CREATE DATABASE muscle_test once per process (idempotent)."""
+async def _ensure_test_database() -> None:
+    """CREATE DATABASE muscle_test once per process (idempotent).
+
+    Must be awaited from inside the running test loop (async fixtures);
+    never uses asyncio.run() because pytest-asyncio already runs a loop.
+    """
     global _test_db_ready
     if _test_db_ready:
         return
@@ -68,39 +71,36 @@ def _ensure_test_database() -> None:
     # (e.g. a standalone test server).
     candidates = [maintenance_url, _url_with_db(TEST_DATABASE_URL, "postgres")]
 
-    async def _create() -> None:
-        last_error: Exception | None = None
-        for base in candidates:
-            try:
-                engine = create_async_engine(base, isolation_level="AUTOCOMMIT")
-            except Exception as err:  # noqa: BLE001
-                last_error = err
-                continue
-            try:
-                async with engine.connect() as conn:
-                    exists = (
-                        await conn.execute(
-                            text("SELECT 1 FROM pg_database WHERE datname = :d"), {"d": target}
-                        )
-                    ).scalar()
-                    if not exists:
-                        await conn.execute(text(f'CREATE DATABASE "{target}"'))
-                _test_db_ready = True
-                return
-            except Exception as err:  # noqa: BLE001
-                last_error = err
-            finally:
-                await engine.dispose()
-        raise RuntimeError(f"无法创建测试数据库 {target}（compose.dev.yml 是否已启动？）") from last_error
-
-    asyncio.run(_create())
+    last_error: Exception | None = None
+    for base in candidates:
+        try:
+            engine = create_async_engine(base, isolation_level="AUTOCOMMIT")
+        except Exception as err:  # noqa: BLE001
+            last_error = err
+            continue
+        try:
+            async with engine.connect() as conn:
+                exists = (
+                    await conn.execute(
+                        text("SELECT 1 FROM pg_database WHERE datname = :d"), {"d": target}
+                    )
+                ).scalar()
+                if not exists:
+                    await conn.execute(text(f'CREATE DATABASE "{target}"'))
+            _test_db_ready = True
+            return
+        except Exception as err:  # noqa: BLE001
+            last_error = err
+        finally:
+            await engine.dispose()
+    raise RuntimeError(f"无法创建测试数据库 {target}（compose.dev.yml 是否已启动？）") from last_error
 
 
 @pytest_asyncio.fixture
 async def db():
     """Per-test engine + schema: create_all → yield session → drop_all."""
     global _current_session, _current_engine
-    _ensure_test_database()
+    await _ensure_test_database()
 
     from app.db import models  # noqa: F401 register all models
     from app.db.base import Base
@@ -170,44 +170,38 @@ def _run_alembic(database_url: str, *args: str) -> None:
         raise RuntimeError(f"alembic {' '.join(args)} 失败:\n{result.stdout}\n{result.stderr}")
 
 
-@pytest.fixture
-def migrated_db_url():
+@pytest_asyncio.fixture
+async def migrated_db_url():
     """Throwaway database migrated with the full alembic chain
     (includes RLS policies and role grants). Yields its URL; the
     database is dropped afterwards. Superuser connection info is taken
     from TEST_DATABASE_URL."""
-    _ensure_test_database()
+    await _ensure_test_database()
     dbname = f"muscle_test_mig_{uuid.uuid4().hex[:10]}"
     url = _url_with_db(TEST_DATABASE_URL, dbname)
 
     maintenance_url = _url_with_db(TEST_DATABASE_URL, "muscle_training_dev")
 
-    async def _create_db() -> None:
-        engine = create_async_engine(maintenance_url, isolation_level="AUTOCOMMIT")
-        try:
-            async with engine.connect() as conn:
-                await conn.execute(text(f'CREATE DATABASE "{dbname}"'))
-        finally:
-            await engine.dispose()
-
-    asyncio.run(_create_db())
+    engine = create_async_engine(maintenance_url, isolation_level="AUTOCOMMIT")
+    try:
+        async with engine.connect() as conn:
+            await conn.execute(text(f'CREATE DATABASE "{dbname}"'))
+    finally:
+        await engine.dispose()
     _run_alembic(url, "upgrade", "head")
     try:
         yield url
     finally:
-        async def _drop_db() -> None:
-            engine = create_async_engine(maintenance_url, isolation_level="AUTOCOMMIT")
-            try:
-                async with engine.connect() as conn:
-                    await conn.execute(
-                        text("SELECT pg_terminate_backend(pid) FROM pg_stat_activity WHERE datname = :d AND pid <> pg_backend_pid()"),
-                        {"d": dbname},
-                    )
-                    await conn.execute(text(f'DROP DATABASE IF EXISTS "{dbname}"'))
-            finally:
-                await engine.dispose()
-
-        asyncio.run(_drop_db())
+        engine = create_async_engine(maintenance_url, isolation_level="AUTOCOMMIT")
+        try:
+            async with engine.connect() as conn:
+                await conn.execute(
+                    text("SELECT pg_terminate_backend(pid) FROM pg_stat_activity WHERE datname = :d AND pid <> pg_backend_pid()"),
+                    {"d": dbname},
+                )
+                await conn.execute(text(f'DROP DATABASE IF EXISTS "{dbname}"'))
+        finally:
+            await engine.dispose()
 
 
 async def create_invite() -> str:

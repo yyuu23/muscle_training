@@ -8,7 +8,7 @@ Maintenance handler (plan §9.1 / §9.5)
 """
 
 import logging
-from datetime import datetime, timedelta
+from datetime import UTC, datetime, timedelta
 
 from sqlalchemy import delete, select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -24,7 +24,7 @@ logger = logging.getLogger(__name__)
 
 async def handle_maintenance(db: AsyncSession, job) -> None:
     settings = get_settings()
-    now = datetime.now(tz=None)
+    now = datetime.now(UTC)
     results = {}
 
     # 1. Expired temporary media

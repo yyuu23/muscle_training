@@ -6,7 +6,7 @@ double-charge.
 """
 
 import uuid
-from datetime import datetime, timedelta
+from datetime import UTC, datetime, timedelta
 
 import pytest
 
@@ -32,7 +32,6 @@ class _StubStorage:
 
 async def test_unknown_submit_lands_in_needs_attention(db, monkeypatch):
     import app.jobs.handlers.import_knowledge as handler_mod
-
     from app.db.models.auth import User
     from app.utils.password import hash_password
 
@@ -55,8 +54,8 @@ async def test_unknown_submit_lands_in_needs_attention(db, monkeypatch):
     asset = Asset(
         id=uuid.uuid4(), owner_user_id=owner.id, object_key=object_key,
         sha256="0" * 64, mime_type="audio/mp4", byte_size=128,
-        retention_class="temporary_import", status="uploaded",
-        expires_at=datetime.now(tz=None) + timedelta(days=7),
+        retention_class="temporary_import", status="pending",
+        expires_at=datetime.now(UTC) + timedelta(days=7),
     )
     db.add_all([source, asset])
 
@@ -68,7 +67,7 @@ async def test_unknown_submit_lands_in_needs_attention(db, monkeypatch):
         payload={"source_id": str(source.id), "asset_id": str(asset.id), "object_key": object_key},
         attempts=1,
         max_attempts=3,
-        run_after=datetime.now(tz=None) - timedelta(seconds=1),
+        run_after=datetime.now(UTC) - timedelta(seconds=1),
     )
     db.add(job)
     await db.commit()

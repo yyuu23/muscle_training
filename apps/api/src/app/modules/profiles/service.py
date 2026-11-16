@@ -6,7 +6,7 @@ Profile service (plan §5.3 / §7.11)
 - Training-relevant changes bump planning_revision.
 """
 
-from datetime import datetime
+from datetime import UTC, datetime
 from uuid import UUID
 
 from sqlalchemy import select
@@ -120,7 +120,7 @@ class ProfileService:
         )
         previous = result.scalar_one_or_none()
 
-        now = datetime.now(tz=None)
+        now = datetime.now(UTC)
         fact = ProfileFact(
             user_id=user_id,
             profile_id=profile.id,
@@ -160,7 +160,7 @@ class ProfileService:
         if old.superseded_by is not None:
             raise ApiError(ErrorCode.VALIDATION_ERROR, "该事实已被替代")
 
-        now = datetime.now(tz=None)
+        now = datetime.now(UTC)
         new_fact = ProfileFact(
             user_id=user_id,
             profile_id=old.profile_id,
@@ -235,7 +235,7 @@ class ProfileService:
         if candidate.status != "pending":
             raise ApiError(ErrorCode.VALIDATION_ERROR, "候选已被处理")
 
-        now = datetime.now(tz=None)
+        now = datetime.now(UTC)
         candidate.resolved_at = now
 
         if decision == "accept":

@@ -10,7 +10,7 @@ Scheduler only creates jobs; execution happens in the worker.
 
 import asyncio
 import logging
-from datetime import datetime, timedelta
+from datetime import UTC, datetime, timedelta
 
 from sqlalchemy import select
 
@@ -40,7 +40,7 @@ async def enqueue_weekly_reviews() -> int:
         users = (
             await db.execute(select(User.id).where(User.status == "active"))
         ).fetchall()
-        week_start = (datetime.now(tz=None) - timedelta(days=7)).replace(
+        week_start = (datetime.now(UTC) - timedelta(days=7)).replace(
             hour=0, minute=0, second=0, microsecond=0
         )
         # Normalize to Monday
@@ -65,7 +65,7 @@ async def enqueue_maintenance() -> str:
             job_type="temporary_asset_cleanup",
             owner_user_id=None,
             payload={},
-            dedupe_key=f"maintenance:{datetime.now(tz=None).date().isoformat()}",
+            dedupe_key=f"maintenance:{datetime.now(UTC).date().isoformat()}",
         )
         return str(job.id)
 
@@ -78,7 +78,7 @@ async def run_forever() -> None:
 
     logger.info("scheduler started (reviews Mon %02d:00, maintenance 03:30)", 4)
     while True:
-        now = datetime.now(tz=None)
+        now = datetime.now(UTC)
 
         if now.weekday() == 0 and now.hour >= 4 and last_review_date != now.date().isoformat():
             try:

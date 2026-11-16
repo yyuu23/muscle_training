@@ -12,7 +12,7 @@ outcomes go to needs_attention (never a blind resubmit).
 
 import hashlib
 import logging
-from datetime import datetime, timedelta
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from uuid import UUID
 
@@ -109,7 +109,7 @@ async def handle_import(db: AsyncSession, job) -> None:
                 byte_size=len(audio_bytes),
                 retention_class="temporary_import",
                 status="verified",
-                expires_at=datetime.now(tz=None) + timedelta(days=7),
+                expires_at=datetime.now(UTC) + timedelta(days=7),
             )
             db.add(audio_asset)
             await db.commit()
@@ -125,7 +125,7 @@ async def handle_import(db: AsyncSession, job) -> None:
         await defer_job(
             db,
             job.id,
-            run_after=datetime.now(tz=None) + timedelta(seconds=POLL_INTERVAL_SECONDS),
+            run_after=datetime.now(UTC) + timedelta(seconds=POLL_INTERVAL_SECONDS),
             external_task_id=external.task_id,
             phase="transcription_polling",
         )
@@ -161,7 +161,7 @@ async def _resume_transcription(db: AsyncSession, job, source: KnowledgeSource) 
         await defer_job(
             db,
             job.id,
-            run_after=datetime.now(tz=None) + timedelta(seconds=POLL_INTERVAL_SECONDS),
+            run_after=datetime.now(UTC) + timedelta(seconds=POLL_INTERVAL_SECONDS),
         )
         return
     if external.status == "unknown":

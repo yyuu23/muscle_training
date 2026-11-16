@@ -29,8 +29,9 @@ async def _seed_two_users(url: str) -> tuple[str, str]:
                 await conn.execute(
                     text(
                         "INSERT INTO users (id, username_normalized, display_name,"
-                        " password_hash, role, status, created_at)"
-                        " VALUES (:id, :name, :name, 'x', 'member', 'active', now())"
+                        " password_hash, role, status, timezone, created_at)"
+                        " VALUES (:id, :name, :name, 'x', 'member', 'active',"
+                        " 'Asia/Shanghai', now())"
                     ),
                     {"id": uid, "name": f"u-{uid[:8]}"},
                 )

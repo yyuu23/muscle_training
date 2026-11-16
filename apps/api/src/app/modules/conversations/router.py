@@ -7,7 +7,7 @@ before returning. Plain conversation text expires after 90 days
 """
 
 import uuid
-from datetime import datetime, timedelta
+from datetime import UTC, datetime, timedelta
 
 from fastapi import APIRouter, Depends, Query
 from sqlalchemy import delete, select
@@ -172,7 +172,7 @@ async def retention_sweep(
     Confirmed facts keep minimal source references and survive this
     sweep (plan §9.5)."""
     settings = get_settings()
-    cutoff = datetime.now(tz=None) - timedelta(days=settings.chat_retention_days)
+    cutoff = datetime.now(UTC) - timedelta(days=settings.chat_retention_days)
     await db.execute(
         delete(Message).where(Message.user_id == user.id).where(Message.created_at < cutoff)
     )

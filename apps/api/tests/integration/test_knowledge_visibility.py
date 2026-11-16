@@ -5,6 +5,7 @@ publishes, owner/admin withdraw excludes from listing.
 """
 
 import uuid
+from uuid import UUID
 
 import pytest
 

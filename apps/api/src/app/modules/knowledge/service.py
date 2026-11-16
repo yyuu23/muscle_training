@@ -11,7 +11,7 @@ transcripts and metadata are durable.
 """
 
 import hashlib
-from datetime import datetime, timedelta
+from datetime import UTC, datetime, timedelta
 from uuid import UUID, uuid4
 
 from sqlalchemy import select
@@ -53,7 +53,7 @@ class KnowledgeService:
 
         retention = "temporary_import" if kind.kind in ("video", "audio") else "durable"
         expires_at = (
-            datetime.now(tz=None) + timedelta(days=TEMP_RETENTION_DAYS)
+            datetime.now(UTC) + timedelta(days=TEMP_RETENTION_DAYS)
             if retention == "temporary_import"
             else None
         )
@@ -174,13 +174,16 @@ class KnowledgeService:
     # ------------------------------------------------------------------
 
     async def list_sources(self, user_id: UUID, *, limit: int = 30, cursor: str | None = None):
-        """Sources I can access: shared + my own."""
+        """Sources I can access: shared + my own. Withdrawn sources are
+        excluded from listings for everyone (plan §7.10); history stays
+        reachable via source_detail."""
         query = (
             select(KnowledgeSource)
             .where(
                 (KnowledgeSource.visibility == "shared")
                 | (KnowledgeSource.owner_user_id == user_id)
             )
+            .where(KnowledgeSource.status != "withdrawn")
             .order_by(KnowledgeSource.updated_at.desc())
             .limit(limit + 1)
         )
@@ -263,7 +266,7 @@ class KnowledgeService:
 
         source = await self.db.get(KnowledgeSource, revision.source_id)
         revision.reviewed_by = reviewer_id
-        revision.reviewed_at = datetime.now(tz=None)
+        revision.reviewed_at = datetime.now(UTC)
         revision.status = "indexing"
         source.status = "indexing"
         await self.db.commit()

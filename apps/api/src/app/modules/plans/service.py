@@ -7,7 +7,7 @@ Plan service (plan §5.4 / §5.9)
 """
 
 import json
-from datetime import datetime
+from datetime import UTC, datetime
 from uuid import UUID
 
 from sqlalchemy import func, select
@@ -223,10 +223,10 @@ class PlanService:
             superseded = await self.get_plan(state.active_plan_id, user_id)
             if superseded is not None and superseded.status == "active":
                 superseded.status = "superseded"
-                superseded.superseded_at = datetime.now(tz=None)
+                superseded.superseded_at = datetime.now(UTC)
 
         candidate.status = "active"
-        candidate.activated_at = datetime.now(tz=None)
+        candidate.activated_at = datetime.now(UTC)
 
         state.active_plan_id = candidate.id
         state.planning_revision += 1  # active plan change increments revision (plan §5.9)

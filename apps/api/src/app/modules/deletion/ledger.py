@@ -6,12 +6,13 @@ revisions and attachments. Restoring an old backup re-applies the
 ledger so deletions survive restores.
 """
 
-from datetime import datetime
+from datetime import UTC, datetime
 from uuid import UUID
 
 from sqlalchemy import delete, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.db.models.auth import AuthSession, PasswordResetToken
 from app.db.models.catalog import PlanVersion
 from app.db.models.knowledge import Asset, KnowledgeChunk, KnowledgeSource, SourceRevision
 from app.db.models.nutrition import MealLog, Measurement
@@ -34,7 +35,7 @@ async def record_deletion(db: AsyncSession, user_id: UUID, scope: dict) -> Delet
         user_id=user_id,
         scope=scope,
         minimal_identifiers={"user_id": str(user_id), **{k: v for k, v in scope.items() if k != "tables"}},
-        completed_at=datetime.now(tz=None),
+        completed_at=datetime.now(UTC),
     )
     db.add(ledger)
     await db.flush()
@@ -90,6 +91,10 @@ async def delete_user_data(db: AsyncSession, user_id: UUID) -> dict:
     counts["model_runs"] = result.rowcount or 0
     await db.execute(delete(Job).where(Job.owner_user_id == user_id))
     await db.delete(await db.get(UserState, user_id))
+
+    # Auth: a deleted user must not keep valid sessions or reset tokens
+    await _delete(AuthSession, "auth_sessions")
+    await _delete(PasswordResetToken, "password_reset_tokens")
 
     await record_deletion(
         db,

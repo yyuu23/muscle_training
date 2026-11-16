@@ -6,7 +6,7 @@ Weekly review builder (plan §7.12)
 - Late logs/corrections/deletions mark old reviews stale.
 """
 
-from datetime import datetime, timedelta
+from datetime import UTC, datetime, timedelta
 from uuid import UUID
 
 from sqlalchemy import select
@@ -27,7 +27,7 @@ def week_start_for(now: datetime) -> datetime:
 async def build_weekly_statistics(db: AsyncSession, user_id: UUID, week_start: datetime) -> dict:
     """Deterministic statistics for one natural week (Mon→Sun)."""
     week_end = week_start + timedelta(days=7)
-    data_cutoff = datetime.now(tz=None)
+    data_cutoff = datetime.now(UTC)
 
     sessions = (
         await db.execute(

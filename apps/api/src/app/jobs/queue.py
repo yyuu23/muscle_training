@@ -8,7 +8,7 @@ Job queue backed by PostgreSQL (plan §9.1)
 """
 
 import socket
-from datetime import datetime, timedelta
+from datetime import UTC, datetime, timedelta
 from uuid import UUID, uuid4
 
 from sqlalchemy import select, text, update
@@ -49,7 +49,7 @@ async def enqueue_job(
         status="queued",
         payload=payload,
         dedupe_key=dedupe_key,
-        run_after=run_after or datetime.now(tz=None),
+        run_after=run_after or datetime.now(UTC),
         max_attempts=get_settings().worker_max_attempts,
     )
     db.add(job)
@@ -65,7 +65,7 @@ async def claim_jobs(
     types: list[str] | None = None,
 ) -> list[Job]:
     """Claim runnable jobs with FOR UPDATE SKIP LOCKED."""
-    now = datetime.now(tz=None)
+    now = datetime.now(UTC)
 
     query = (
         select(Job)
@@ -88,7 +88,6 @@ async def claim_jobs(
         job.lease_owner = WORKER_ID
         job.lease_expires_at = now + timedelta(seconds=get_settings().worker_lease_timeout_seconds)
         job.attempts += 1
-        job.started_at = job.started_at or now
 
     # Commit the lease immediately (plan §9.1)
     await db.commit()
@@ -99,7 +98,7 @@ async def claim_jobs(
 
 async def reclaim_expired_jobs(db: AsyncSession) -> int:
     """Requeue jobs whose lease expired (worker crash recovery)."""
-    now = datetime.now(tz=None)
+    now = datetime.now(UTC)
     result = await db.execute(
         update(Job)
         .where(Job.status == "running")
@@ -124,7 +123,7 @@ async def renew_lease(db: AsyncSession, job_id: UUID) -> None:
         update(Job)
         .where(Job.id == job_id)
         .where(Job.status == "running")
-        .values(lease_expires_at=datetime.now(tz=None) + timedelta(seconds=get_settings().worker_lease_timeout_seconds))
+        .values(lease_expires_at=datetime.now(UTC) + timedelta(seconds=get_settings().worker_lease_timeout_seconds))
     )
     await db.commit()
 
@@ -136,7 +135,7 @@ async def complete_job(db: AsyncSession, job_id: UUID, result_ref: dict | None =
         .values(
             status="succeeded",
             result_ref=result_ref,
-            completed_at=datetime.now(tz=None),
+            completed_at=datetime.now(UTC),
             lease_owner=None,
             lease_expires_at=None,
         )
@@ -162,7 +161,7 @@ async def fail_job(
 
     if retryable and job.attempts < job.max_attempts:
         job.status = "queued"
-        job.run_after = datetime.now(tz=None) + timedelta(seconds=30)
+        job.run_after = datetime.now(UTC) + timedelta(seconds=30)
         job.lease_owner = None
         job.lease_expires_at = None
     else:
@@ -198,7 +197,7 @@ async def defer_job(
 
 async def resume_waiting_jobs(db: AsyncSession, *, types: list[str] | None = None) -> list[Job]:
     """Move waiting_external jobs whose run_after passed back to queued."""
-    now = datetime.now(tz=None)
+    now = datetime.now(UTC)
     query = (
         select(Job)
         .where(Job.status == "waiting_external")
@@ -219,7 +218,7 @@ async def resume_waiting_jobs(db: AsyncSession, *, types: list[str] | None = Non
 
 async def poll_external_jobs(db: AsyncSession, *, types: list[str] | None = None) -> list[Job]:
     """Jobs with external_task_id in waiting_external ready for polling."""
-    now = datetime.now(tz=None)
+    now = datetime.now(UTC)
     query = (
         select(Job)
         .where(Job.status == "waiting_external")

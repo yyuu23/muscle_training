@@ -11,7 +11,7 @@ import pytest
 
 pytestmark = pytest.mark.integration
 
-REPO_ROOT = Path(__file__).resolve().parents[3]
+REPO_ROOT = Path(__file__).resolve().parents[4]
 CONTRACT = REPO_ROOT / "contracts" / "openapi.json"
 
 
@@ -33,8 +33,25 @@ def test_error_envelope_and_prefix() -> None:
     spec = app.openapi()
     assert spec.get("info", {}).get("title")
     paths = spec["paths"]
-    assert all(p.startswith("/api/v1/") for p in paths), "所有路径必须挂 /api/v1 前缀"
-    # Error envelope components must be referenced somewhere
-    assert "ErrorBody" in spec.get("components", {}).get("schemas", {}) or any(
-        "ErrorBody" in json.dumps(v) for v in spec.get("components", {}).get("schemas", {}).values()
-    ), "统一错误体 ErrorBody 必须存在于契约"
+    # Health checks and root are deliberately unprefixed; everything
+    # else must live under /api/v1 (plan §6.1).
+    system_paths = {"/", "/health/live", "/health/ready", "/docs", "/redoc"}
+    api_paths = [p for p in paths if p not in system_paths]
+    assert api_paths, "契约里没有任何 API 路径"
+    assert all(p.startswith("/api/v1/") for p in api_paths), "所有业务路径必须挂 /api/v1 前缀"
+
+
+async def test_error_envelope_at_runtime(http) -> None:
+    """The unified error envelope is emitted at runtime (plan §6.1):
+    a validation failure must return {error:{code,message,request_id,details}}."""
+    response = await http.post(
+        "/api/v1/auth/register",
+        json={"username": "x"},  # missing required fields
+        headers={"Origin": "http://test", "Content-Type": "application/json"},
+    )
+    assert response.status_code == 400, response.text
+    envelope = response.json().get("error")
+    assert envelope and envelope.get("code") == "VALIDATION_ERROR"
+    assert envelope.get("message")
+    assert envelope.get("request_id")
+    assert isinstance(envelope.get("details"), dict)

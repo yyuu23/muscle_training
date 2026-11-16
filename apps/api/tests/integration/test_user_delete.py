@@ -5,7 +5,7 @@ re-application.
 """
 
 import uuid
-from datetime import datetime, timedelta
+from datetime import UTC, datetime, timedelta
 
 import pytest
 from sqlalchemy import func, select
@@ -20,7 +20,7 @@ from app.utils.password import hash_password
 
 pytestmark = pytest.mark.integration
 
-FUTURE = datetime.now(tz=None) + timedelta(days=1)
+FUTURE = datetime.now(UTC) + timedelta(days=1)
 
 
 async def _make_user(db, username: str) -> User:

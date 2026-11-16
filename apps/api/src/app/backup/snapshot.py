@@ -16,7 +16,7 @@ import logging
 import subprocess
 import tarfile
 import tempfile
-from datetime import datetime
+from datetime import UTC, datetime
 from pathlib import Path
 
 from sqlalchemy import select
@@ -143,7 +143,7 @@ def build_archive(
 async def create_backup() -> dict:
     """Full backup run; returns run metadata (uploaded key + hashes)."""
     settings = get_settings()
-    snapshot_at = datetime.now(tz=None)
+    snapshot_at = datetime.now(UTC)
     storage = get_storage()
 
     with tempfile.TemporaryDirectory(prefix="backup-") as tmp:
@@ -208,7 +208,7 @@ async def create_backup() -> dict:
                 archive_sha256=archive_sha,
                 byte_size=len(ciphertext),
                 manifest_version="1",
-                completed_at=datetime.now(tz=None),
+                completed_at=datetime.now(UTC),
             )
             db.add(run)
             await db.commit()

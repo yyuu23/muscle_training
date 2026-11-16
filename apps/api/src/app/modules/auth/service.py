@@ -7,7 +7,7 @@ Authentication service (plan §9.2)
 """
 
 import hashlib
-from datetime import datetime, timedelta
+from datetime import UTC, datetime, timedelta
 from uuid import UUID
 
 from sqlalchemy import select
@@ -56,7 +56,7 @@ class AuthService:
         max_attempts: int = 5,
     ) -> bool:
         """True if within the allowed attempt count."""
-        cutoff = datetime.now(tz=None) - timedelta(minutes=window_minutes)
+        cutoff = datetime.now(UTC) - timedelta(minutes=window_minutes)
         username_hash = hashlib.sha256(normalize_username(username).encode()).hexdigest()
 
         result = await self.db.execute(
@@ -88,7 +88,7 @@ class AuthService:
             select(Invite)
             .where(Invite.code_hash == code_hash)
             .where(Invite.used_at.is_(None))
-            .where(Invite.expires_at > datetime.now(tz=None))
+            .where(Invite.expires_at > datetime.now(UTC))
         )
         return result.scalar_one_or_none()
 
@@ -170,7 +170,7 @@ class AuthService:
 
         # Consume invite in the same transaction as user creation
         invite.used_by = user.id
-        invite.used_at = datetime.now(tz=None)
+        invite.used_at = datetime.now(UTC)
 
         self.db.add(Profile(user_id=user.id, version=1))
         self.db.add(UserState(user_id=user.id, planning_revision=1))
@@ -214,12 +214,12 @@ class AuthService:
             select(AuthSession)
             .where(AuthSession.token_hash == hash_token(raw_token))
             .where(AuthSession.revoked_at.is_(None))
-            .where(AuthSession.expires_at > datetime.now(tz=None))
+            .where(AuthSession.expires_at > datetime.now(UTC))
         )
         return result.scalar_one_or_none()
 
     async def logout_user(self, session: AuthSession) -> None:
-        session.revoked_at = datetime.now(tz=None)
+        session.revoked_at = datetime.now(UTC)
         await self.db.commit()
 
     async def change_password(
@@ -239,7 +239,7 @@ class AuthService:
             .where(AuthSession.id != current_session.id)
         )
         for other in result.scalars().all():
-            other.revoked_at = datetime.now(tz=None)
+            other.revoked_at = datetime.now(UTC)
 
         await self.db.commit()
 
@@ -274,7 +274,7 @@ class AuthService:
             select(PasswordResetToken)
             .where(PasswordResetToken.token_hash == hash_token(raw_token))
             .where(PasswordResetToken.used_at.is_(None))
-            .where(PasswordResetToken.expires_at > datetime.now(tz=None))
+            .where(PasswordResetToken.expires_at > datetime.now(UTC))
         )
         token_row = result.scalar_one_or_none()
         if not token_row:
@@ -286,7 +286,7 @@ class AuthService:
             raise ValueError("用户不可用")
 
         user.password_hash = hash_password(new_password)
-        token_row.used_at = datetime.now(tz=None)
+        token_row.used_at = datetime.now(UTC)
 
         sessions = await self.db.execute(
             select(AuthSession)
@@ -294,7 +294,7 @@ class AuthService:
             .where(AuthSession.revoked_at.is_(None))
         )
         for session in sessions.scalars().all():
-            session.revoked_at = datetime.now(tz=None)
+            session.revoked_at = datetime.now(UTC)
 
         await self.db.commit()
         return user

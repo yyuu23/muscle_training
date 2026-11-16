@@ -18,6 +18,7 @@ from uuid import UUID
 
 from sqlalchemy import event, text
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
+from sqlalchemy.orm import Session
 
 USER_CTX_KEY = "app_user_id"
 
@@ -38,12 +39,17 @@ async def set_user_context(session: AsyncSession, user_id: UUID | None) -> None:
 def install_user_context_hook(session_maker: async_sessionmaker) -> None:
     """Re-apply the user context whenever a transaction begins on a
     session produced by ``session_maker`` (handles mid-request commits
-    and pooled-connection switches)."""
+    and pooled-connection switches).
 
-    @event.listens_for(session_maker.class_, "after_begin")
-    def _apply_user_context(dbapi_session, transaction, connection):  # noqa: ARG001
-        info = dbapi_session.info
-        uid = info.get(USER_CTX_KEY)
+    ``after_begin`` is a sync-Session ORM event; AsyncSession delegates
+    to its underlying ``Session`` (``session.info`` is shared between
+    them), so we listen on the sync class. Installed once at import of
+    ``app.db.session``.
+    """
+
+    @event.listens_for(Session, "after_begin")
+    def _apply_user_context(session, transaction, connection):  # noqa: ARG001
+        uid = session.info.get(USER_CTX_KEY)
         if uid:
             connection.execute(
                 text("SELECT set_config('app.user_id', :uid, true)"), {"uid": uid}

@@ -9,6 +9,7 @@ Budget: reserve before call, settle after; retries also count.
 
 import time
 from dataclasses import field
+from datetime import UTC
 
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -80,7 +81,7 @@ async def monthly_spend_fen(db: AsyncSession) -> int:
     """Sum estimated costs for the current month across all runs."""
     from datetime import datetime
 
-    now = datetime.now(tz=None)
+    now = datetime.now(UTC)
     month_start = now.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
     result = await db.execute(
         select(func.coalesce(func.sum(ModelRun.estimated_cost), 0)).where(

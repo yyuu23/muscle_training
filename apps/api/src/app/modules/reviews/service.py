@@ -8,7 +8,7 @@ Reviews service (plan §7.12)
 """
 
 import json
-from datetime import datetime
+from datetime import UTC, datetime
 from uuid import UUID
 
 from sqlalchemy import select
@@ -44,7 +44,7 @@ class ReviewService:
         from app.services.planning import get_user_state
 
         state = await get_user_state(self.db, user_id)
-        start = week_start or week_start_for(datetime.now(tz=None))
+        start = week_start or week_start_for(datetime.now(UTC))
 
         existing = (
             await self.db.execute(

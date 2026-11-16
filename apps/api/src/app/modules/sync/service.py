@@ -12,7 +12,7 @@ Offline sync service (plan §8.4 / §8.5)
 import hashlib
 import json
 import logging
-from datetime import datetime, timedelta
+from datetime import UTC, datetime, timedelta
 from decimal import Decimal
 from uuid import UUID
 
@@ -142,7 +142,7 @@ class SyncService:
             event_type=item.event_type,
             payload_hash=payload_hash,
             result={"outcome": "applied", "detail": detail},
-            applied_at=datetime.now(tz=None),
+            applied_at=datetime.now(UTC),
         )
         self.db.add(event_row)
         await self.db.commit()
@@ -179,7 +179,7 @@ class SyncService:
                 event_type=item.event_type,
                 payload_hash=payload_hash,
                 result={"outcome": "rejected", "detail": {"error": error_code, "message": message}},
-                applied_at=datetime.now(tz=None),
+                applied_at=datetime.now(UTC),
             )
         )
         return SyncEventResult(
@@ -329,7 +329,7 @@ class SyncService:
         from app.modules.workouts.service import WorkoutService
 
         state = await get_user_state(self.db, user_id)
-        cutoff = datetime.now(tz=None) - timedelta(days=30)
+        cutoff = datetime.now(UTC) - timedelta(days=30)
 
         # Profile + active facts
         profile = (
@@ -447,7 +447,7 @@ class SyncService:
             }
 
         return {
-            "generated_at": datetime.now(tz=None),
+            "generated_at": datetime.now(UTC),
             "planning_revision": state.planning_revision,
             "profile": _profile_dict(profile),
             "facts": [

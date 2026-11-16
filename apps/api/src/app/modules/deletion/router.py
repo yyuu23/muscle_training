@@ -5,7 +5,7 @@ DELETE /account requires recent re-authentication. Deletion covers all
 user data and is recorded in the deletion ledger.
 """
 
-from datetime import datetime, timedelta
+from datetime import UTC, datetime, timedelta
 
 from fastapi import APIRouter, Depends, Request, status
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -29,7 +29,7 @@ async def delete_account(
 ):
     """Delete my account data. Requires a session created recently."""
     # Recent re-authentication: the current session must be young
-    if session.created_at < datetime.now(tz=None) - timedelta(minutes=REAUTH_WINDOW_MINUTES):
+    if session.created_at < datetime.now(UTC) - timedelta(minutes=REAUTH_WINDOW_MINUTES):
         raise ApiError(
             ErrorCode.AUTH_REQUIRED,
             "删除账号前请重新登录确认身份（15 分钟内）",

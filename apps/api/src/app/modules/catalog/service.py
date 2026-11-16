@@ -9,7 +9,7 @@ Catalog service (plan §10.1 / §10.2)
 
 import hashlib
 import json
-from datetime import datetime
+from datetime import UTC, datetime
 from pathlib import Path
 from uuid import NAMESPACE_URL, UUID, uuid5
 
@@ -351,7 +351,7 @@ class CatalogService:
             return None
         exercise.review_status = "approved" if decision == "approve" else "rejected"
         exercise.reviewed_by = admin_id
-        exercise.reviewed_at = datetime.now(tz=None)
+        exercise.reviewed_at = datetime.now(UTC)
         await self.db.commit()
         await self.db.refresh(exercise)
         return exercise
@@ -364,7 +364,7 @@ class CatalogService:
             return None
         template.review_status = "approved" if decision == "approve" else "rejected"
         template.reviewed_by = admin_id
-        template.reviewed_at = datetime.now(tz=None)
+        template.reviewed_at = datetime.now(UTC)
         await self.db.commit()
         await self.db.refresh(template)
         return template

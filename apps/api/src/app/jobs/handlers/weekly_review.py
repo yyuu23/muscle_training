@@ -6,6 +6,7 @@ interprets. Insufficient data → fixed result, no model call.
 """
 
 import logging
+from datetime import UTC
 from uuid import UUID
 
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -23,7 +24,7 @@ async def handle_weekly_review(db: AsyncSession, job) -> None:
 
     from datetime import datetime
 
-    week_start = datetime.fromisoformat(week_start_str) if week_start_str else week_start_for(datetime.now(tz=None))
+    week_start = datetime.fromisoformat(week_start_str) if week_start_str else week_start_for(datetime.now(UTC))
 
     try:
         service = ReviewService(db)

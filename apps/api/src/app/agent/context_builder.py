@@ -16,7 +16,7 @@ instead of silently dropping constraints.
 """
 
 from dataclasses import dataclass, field
-from datetime import datetime, timedelta
+from datetime import UTC, datetime, timedelta
 from uuid import UUID
 
 from sqlalchemy import select
@@ -139,7 +139,7 @@ async def build_context(
         }
 
     # Recent training (last 30 days), compact summaries only
-    cutoff = datetime.now(tz=None) - timedelta(days=30)
+    cutoff = datetime.now(UTC) - timedelta(days=30)
     sessions = (
         await db.execute(
             select(WorkoutSession)

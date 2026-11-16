@@ -10,6 +10,7 @@ import uuid
 import pytest
 from sqlalchemy import text
 
+import app.db.session  # noqa: F401  — production wiring installs the after_begin hook
 from app.db.scope import set_user_context
 
 pytestmark = pytest.mark.integration
@@ -51,7 +52,9 @@ async def test_context_switch_does_not_leak(db):
     # A fresh session (next pooled request) starts with NO context.
     from sqlalchemy.ext.asyncio import async_sessionmaker
 
-    maker = async_sessionmaker(db.get_bind(), expire_on_commit=False)
+    # AsyncSession.get_bind() returns the SYNC engine facade; AsyncSession.bind
+    # is the async one required by async_sessionmaker.
+    maker = async_sessionmaker(db.bind, expire_on_commit=False)
     async with maker() as other:
         assert await _current_user_id(other) is None
 
