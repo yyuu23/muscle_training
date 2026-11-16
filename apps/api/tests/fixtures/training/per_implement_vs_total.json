@@ -1,26 +1,27 @@
 {
-  "description": "同动作不同计量方式：哑铃单只重量 vs 总重量，负荷不可直接比较",
-  "exercise_slug": "dumbbell-press",
+  "_doc": "同一动作在 per_implement 与 total_external 两种负荷模式下的历史（plan §5.5/§7.5：不可直接比较负荷，不得混合进阶判定）",
+  "user_id": "00000000-aaaa-4bbb-8ccc-000000000003",
+  "exercise_id": "00000000-eeee-4fff-8aaa-0000000000a2",
+  "exercise_content_version": 2,
   "sessions": [
     {
-      "date": "2026-10-15",
-      "equipment_label": "dumbbell",
-      "load_mode": "per_implement",
-      "load_kg": "15.00",
-      "load_note": "每只哑铃 15kg（合计 30kg）",
-      "reps": 10
+      "started_at": "2026-10-13T09:00:00+08:00",
+      "equipment_label": "哑铃(单只计)",
+      "working_sets": [
+        { "set_index": 1, "set_kind": "work", "status": "completed", "load_kg": "20.00", "load_mode": "per_implement", "reps": 10, "rir": 1 }
+      ]
     },
     {
-      "date": "2026-10-22",
-      "equipment_label": "dumbbell",
-      "load_mode": "total_external",
-      "load_kg": "30.00",
-      "load_note": "记录成了总重量 30kg",
-      "reps": 10
+      "started_at": "2026-10-20T09:00:00+08:00",
+      "equipment_label": "哑铃(一对合计)",
+      "working_sets": [
+        { "set_index": 1, "set_kind": "work", "status": "completed", "load_kg": "40.00", "load_mode": "total_external", "reps": 10, "rir": 1 }
+      ]
     }
   ],
-  "expected_behavior": {
-    "load_comparison": "两次记录不可直接比较，不得据此产生加重建议",
-    "ui_hint": "应提示用户统一计量方式（单只 vs 总重）"
+  "expected": {
+    "progression_candidate": false,
+    "blocked_by": "incomparable_load_mode",
+    "note": "40kg(total) ≠ 2×20kg(per_implement) 的翻倍默认；同器械同计量才可比较"
   }
 }

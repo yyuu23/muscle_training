@@ -6,7 +6,7 @@
  */
 
 import { useState } from 'react';
-import { LinkIcon, DocumentTextIcon } from '@heroicons/react/24/outline';
+import { LinkIcon, DocumentTextIcon } from '@heroicons/react/24/solid';
 
 export interface Citation {
   chunk_id: string;
@@ -35,24 +35,24 @@ export function CitationLink({ citation }: { citation: Citation }) {
       <button
         type="button"
         onClick={() => setExpanded(!expanded)}
-        className="inline-flex items-center gap-1 text-xs text-primary-700 bg-primary-50 border border-primary-100 rounded-full px-2 py-0.5 hover:bg-primary-100"
+        className="inline-flex items-center gap-1 text-xs text-primary bg-primary-soft border border-primary/25 rounded-full px-2.5 py-1 hover:shadow-soft transition-shadow animate-fade-in"
       >
         {citation.original_url ? <LinkIcon className="w-3 h-3" /> : <DocumentTextIcon className="w-3 h-3" />}
         {citation.title || '来源'}
-        {timestamp && <span className="text-primary-500">· {timestamp}</span>}
+        {timestamp && <span className="opacity-75 tabular-nums">· {timestamp}</span>}
         {!citation.accessible && citation.accessible !== undefined && (
-          <span className="text-gray-400">· 来源不可用</span>
+          <span className="text-text-muted">· 来源不可用</span>
         )}
       </button>
 
       {expanded && (
-        <span className="block mt-1 text-xs text-gray-500 bg-gray-50 border border-gray-100 rounded-lg p-2 max-w-md">
+        <span className="block mt-1.5 text-xs text-text-secondary bg-surface-2 border border-border-default rounded-xl p-2.5 max-w-md animate-slide-up">
           {citation.original_url ? (
             <a
               href={citation.original_url}
               target="_blank"
               rel="noreferrer"
-              className="text-primary-600 underline break-all"
+              className="text-primary underline underline-offset-2 break-all"
             >
               打开原始链接{timestamp ? `（定位 ${timestamp}）` : ''}
             </a>
@@ -60,7 +60,7 @@ export function CitationLink({ citation }: { citation: Citation }) {
             <span>原视频不在云端，查看应用内字幕{timestamp ? `（${timestamp}）` : ''}</span>
           )}
           {citation.quote && (
-            <span className="block mt-1 text-gray-600 border-l-2 border-primary-200 pl-2">
+            <span className="block mt-1.5 text-text border-l-2 border-primary pl-2 italic">
               “{citation.quote}”
             </span>
           )}

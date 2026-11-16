@@ -1,6 +1,7 @@
 import { useForm } from 'react-hook-form';
 import { useNavigate } from 'react-router-dom';
 import { useLogin } from './useAuth';
+import { AmbientBackground } from '../../components/AmbientBackground';
 
 interface LoginFormData {
   email: string;
@@ -25,34 +26,46 @@ export function LoginPage() {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-50 px-4">
-      <div className="max-w-md w-full space-y-8">
-        <div>
-          <h2 className="mt-6 text-center text-3xl font-extrabold text-gray-900">
-            私人健身教练
-          </h2>
-          <p className="mt-2 text-center text-sm text-gray-600">
-            登录到您的账户
-          </p>
+    <div className="min-h-screen flex items-center justify-center bg-bg px-4 relative overflow-hidden">
+      <AmbientBackground />
+      {/* ambient brand glow */}
+      <div
+        className="absolute -top-32 left-1/2 -translate-x-1/2 w-[480px] h-[480px] rounded-full opacity-[0.14] blur-3xl pointer-events-none"
+        style={{ background: 'radial-gradient(circle, var(--primary), transparent 70%)' }}
+        aria-hidden
+      />
+      <div className="max-w-md w-full space-y-8 relative animate-slide-up">
+        <div className="text-center">
+          <div
+            className="inline-flex w-16 h-16 rounded-3xl items-center justify-center mb-4 shadow-glow animate-scale-in"
+            style={{ background: 'linear-gradient(135deg, var(--header-from), var(--header-to))' }}
+          >
+            {/* brand mark: dumbbell */}
+            <svg viewBox="0 0 24 24" className="w-9 h-9" fill="none" aria-hidden>
+              <path d="M4 9v6M7 7v10M17 7v10M20 9v6M7 12h10" stroke="var(--header-text)" strokeWidth="2.2" strokeLinecap="round" />
+            </svg>
+          </div>
+          <h2 className="text-3xl font-extrabold text-text tracking-tight">私人健身教练</h2>
+          <p className="mt-2 text-sm text-text-secondary">登录到您的账户</p>
         </div>
 
-        <form className="mt-8 space-y-6" onSubmit={handleSubmit(onSubmit)}>
+        <form className="mt-8 space-y-5" onSubmit={handleSubmit(onSubmit)}>
           {login.error && (
-            <div className="rounded-md bg-red-50 p-4">
-              <div className="text-sm text-red-800">{login.error.message}</div>
+            <div className="rounded-xl bg-danger-soft border border-danger/25 p-4 animate-scale-in">
+              <p className="text-sm text-danger">{login.error.message}</p>
             </div>
           )}
 
-          <div className="rounded-md shadow-sm space-y-4">
+          <div className="space-y-4">
             <div>
-              <label htmlFor="email" className="block text-sm font-medium text-gray-700">
-                邮箱
+              <label htmlFor="email" className="block text-sm font-medium text-text-secondary mb-1.5">
+                用户名 / 邮箱
               </label>
               <input
                 id="email"
                 type="email"
                 autoComplete="email"
-                className="input-field mt-1"
+                className="input"
                 {...register('email', {
                   required: '请输入邮箱',
                   pattern: {
@@ -62,44 +75,42 @@ export function LoginPage() {
                 })}
               />
               {errors.email && (
-                <p className="mt-1 text-sm text-red-600">{errors.email.message}</p>
+                <p className="mt-1.5 text-sm text-danger">{errors.email.message}</p>
               )}
             </div>
 
             <div>
-              <label htmlFor="password" className="block text-sm font-medium text-gray-700">
+              <label htmlFor="password" className="block text-sm font-medium text-text-secondary mb-1.5">
                 密码
               </label>
               <input
                 id="password"
                 type="password"
                 autoComplete="current-password"
-                className="input-field mt-1"
+                className="input"
                 {...register('password', {
                   required: '请输入密码',
                 })}
               />
               {errors.password && (
-                <p className="mt-1 text-sm text-red-600">{errors.password.message}</p>
+                <p className="mt-1.5 text-sm text-danger">{errors.password.message}</p>
               )}
             </div>
           </div>
 
-          <div>
-            <button
-              type="submit"
-              disabled={login.isPending}
-              className="btn-primary w-full"
-            >
-              {login.isPending ? '登录中...' : '登录'}
-            </button>
-          </div>
+          <button
+            type="submit"
+            disabled={login.isPending}
+            className="btn btn-primary btn-lg w-full"
+          >
+            {login.isPending ? '登录中…' : '登录'}
+          </button>
 
           <div className="text-center">
             <button
               type="button"
               onClick={() => navigate('/register')}
-              className="text-sm text-blue-600 hover:text-blue-500"
+              className="text-sm text-primary font-medium hover:underline underline-offset-4"
             >
               还没有账户？立即注册
             </button>

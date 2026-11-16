@@ -9,10 +9,12 @@ import { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useForm } from 'react-hook-form';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { CheckCircleIcon } from '@heroicons/react/24/outline';
+import { CheckCircleIcon, ChevronLeftIcon } from '@heroicons/react/24/solid';
 import { apiFetch, APIError } from '../../api/client';
 import { db } from '../../offline/database';
 import { useAuth } from '../auth/useAuth';
+import { useToast } from '../../components/ui/Toast';
+import { Button } from '../../components/ui/Button';
 
 interface OnboardingForm {
   goal: string;
@@ -35,10 +37,14 @@ const INCREMENT_OPTIONS = ['1.25', '2.5', '5'];
 
 const STEPS = ['目标', '经验', '频率', '时间', '器械', '增量'] as const;
 
+const CHIP_ACTIVE = 'border-primary bg-primary-soft text-primary font-semibold shadow-soft';
+const CHIP_IDLE = 'border-border-default text-text-secondary hover:border-border-strong';
+
 export function OnboardingPage() {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const { user } = useAuth();
+  const toast = useToast();
   const [step, setStep] = useState(0);
 
   const { data: profileData } = useQuery({
@@ -130,31 +136,36 @@ export function OnboardingPage() {
         });
       }
       await queryClient.invalidateQueries({ queryKey: ['profiles'] });
+      toast.show('建档完成');
       navigate('/today');
     } catch (err) {
       if (err instanceof APIError && err.code === 'VERSION_CONFLICT') {
-        alert('档案已被其他设备修改，正在刷新…');
+        toast.show('档案已被其他设备修改，正在刷新…', 'error');
         await queryClient.invalidateQueries({ queryKey: ['profiles'] });
       } else {
-        alert(err instanceof Error ? err.message : '保存失败');
+        toast.show(err instanceof Error ? err.message : '保存失败', 'error');
       }
     }
   });
 
   return (
-    <div className="min-h-screen bg-gray-50 py-8 px-4">
-      <div className="max-w-lg mx-auto">
-        <h1 className="text-2xl font-bold text-gray-900 mb-1">建立训练档案</h1>
-        <p className="text-sm text-gray-500 mb-6">
+    <div className="min-h-screen bg-bg py-8 px-4">
+      <div className="w-full max-w-lg lg:max-w-xl mx-auto">
+        <h1 className="text-2xl font-bold text-text mb-1">建立训练档案</h1>
+        <p className={`text-sm mb-6 ${missingHint ? 'text-warning' : 'text-text-secondary'}`}>
           {missingHint ? `还缺少：${missingHint}` : '这些信息用于生成适合你的训练计划'}
         </p>
 
         {/* Progress */}
-        <div className="flex gap-1 mb-6">
+        <div className="flex gap-1.5 mb-6">
           {STEPS.map((label, i) => (
             <div key={label} className="flex-1">
-              <div className={`h-1.5 rounded-full ${i <= step ? 'bg-primary-600' : 'bg-gray-200'}`} />
-              <p className={`text-[10px] mt-1 text-center ${i <= step ? 'text-primary-700' : 'text-gray-400'}`}>
+              <div className="h-1.5 rounded-full bg-surface-2 overflow-hidden">
+                <div
+                  className={`h-full rounded-full bg-primary transition-all duration-500 ease-out ${i <= step ? 'w-full' : 'w-0'}`}
+                />
+              </div>
+              <p className={`text-[10px] mt-1 text-center transition-colors ${i <= step ? 'text-primary font-medium' : 'text-text-muted'}`}>
                 {label}
               </p>
             </div>
@@ -162,197 +173,175 @@ export function OnboardingPage() {
         </div>
 
         <form onSubmit={submit} className="card p-6 space-y-6">
-          {step === 0 && (
-            <div>
-              <h2 className="font-semibold mb-3">你的训练目标是什么？</h2>
-              <div className="grid grid-cols-2 gap-2">
-                {GOALS.map((goal) => (
-                  <button
-                    key={goal}
-                    type="button"
-                    onClick={() => setValue('goal', goal)}
-                    className={`p-3 rounded-xl border text-sm ${
-                      watch('goal') === goal
-                        ? 'border-primary-500 bg-primary-50 text-primary-700'
-                        : 'border-gray-200 text-gray-600'
-                    }`}
-                  >
-                    {goal}
-                  </button>
-                ))}
-              </div>
-              {!watch('goal') && <p className="text-xs text-amber-600 mt-2">请选择一个目标</p>}
-            </div>
-          )}
-
-          {step === 1 && (
-            <div>
-              <h2 className="font-semibold mb-3">系统训练了多久？（月）</h2>
-              <input
-                type="range"
-                min={0}
-                max={120}
-                step={1}
-                {...register('training_experience_months', { valueAsNumber: true })}
-                className="w-full accent-primary-600"
-              />
-              <p className="text-center text-lg font-semibold text-primary-700 mt-2">
-                {watch('training_experience_months')} 个月
-              </p>
-            </div>
-          )}
-
-          {step === 2 && (
-            <div className="space-y-6">
+          {/* step content transitions on change */}
+          <div key={step} className="animate-slide-up">
+            {step === 0 && (
               <div>
-                <h2 className="font-semibold mb-3">每周训练几天？</h2>
-                <div className="flex gap-2">
-                  {[2, 3, 4, 5].map((n) => (
+                <h2 className="font-semibold mb-3">你的训练目标是什么？</h2>
+                <div className="grid grid-cols-2 gap-2.5">
+                  {GOALS.map((goal, i) => (
                     <button
-                      key={n}
+                      key={goal}
                       type="button"
-                      onClick={() => setValue('sessions_per_week', n)}
-                      className={`flex-1 py-3 rounded-xl border text-center ${
-                        watch('sessions_per_week') === n
-                          ? 'border-primary-500 bg-primary-50 text-primary-700 font-semibold'
-                          : 'border-gray-200 text-gray-600'
-                      }`}
+                      onClick={() => setValue('goal', goal)}
+                      className={`p-3.5 rounded-2xl border text-sm transition-all animate-fade-in ${watch('goal') === goal ? CHIP_ACTIVE : CHIP_IDLE}`}
+                      style={{ animationDelay: `${i * 50}ms` }}
                     >
-                      {n} 天
+                      {goal}
                     </button>
                   ))}
                 </div>
+                {!watch('goal') && <p className="text-xs text-warning mt-2">请选择一个目标</p>}
               </div>
-              <div>
-                <h2 className="font-semibold mb-3">每次多久？</h2>
-                <div className="flex gap-2">
-                  {[30, 45, 60, 90].map((n) => (
-                    <button
-                      key={n}
-                      type="button"
-                      onClick={() => setValue('minutes_per_session', n)}
-                      className={`flex-1 py-3 rounded-xl border text-center text-sm ${
-                        watch('minutes_per_session') === n
-                          ? 'border-primary-500 bg-primary-50 text-primary-700 font-semibold'
-                          : 'border-gray-200 text-gray-600'
-                      }`}
-                    >
-                      {n} 分钟
-                    </button>
-                  ))}
-                </div>
-              </div>
-            </div>
-          )}
+            )}
 
-          {step === 3 && (
-            <div>
-              <h2 className="font-semibold mb-3">哪些天可以训练？</h2>
-              <div className="grid grid-cols-4 gap-2">
-                {WEEKDAY_LABELS.map((label, i) => {
-                  const weekday = i + 1;
-                  const active = selectedWeekdays.includes(weekday);
-                  return (
-                    <button
-                      key={label}
-                      type="button"
-                      onClick={() => toggle('available_weekdays', weekday)}
-                      className={`py-3 rounded-xl border text-sm ${
-                        active
-                          ? 'border-primary-500 bg-primary-50 text-primary-700 font-semibold'
-                          : 'border-gray-200 text-gray-600'
-                      }`}
-                    >
-                      {label}
-                    </button>
-                  );
-                })}
-              </div>
-              {selectedWeekdays.length !== watch('sessions_per_week') && (
-                <p className="text-xs text-amber-600 mt-2">
-                  已选 {selectedWeekdays.length} 天，与计划的每周 {watch('sessions_per_week')} 天
-                  {selectedWeekdays.length > watch('sessions_per_week') ? '（多于计划天数也可以）' : '（不足）'}
+            {step === 1 && (
+              <div>
+                <h2 className="font-semibold mb-3">系统训练了多久？（月）</h2>
+                <input
+                  type="range"
+                  min={0}
+                  max={120}
+                  step={1}
+                  {...register('training_experience_months', { valueAsNumber: true })}
+                  className="w-full accent-primary"
+                />
+                <p className="text-center text-2xl font-bold text-primary tabular-nums mt-2 animate-count-pop" key={watch('training_experience_months')}>
+                  {watch('training_experience_months')} <span className="text-sm font-medium">个月</span>
                 </p>
-              )}
-            </div>
-          )}
-
-          {step === 4 && (
-            <div>
-              <h2 className="font-semibold mb-3">有哪些器械？</h2>
-              <div className="grid grid-cols-2 gap-2">
-                {EQUIPMENT_OPTIONS.map((eq) => {
-                  const active = selectedEquipment.includes(eq);
-                  return (
-                    <button
-                      key={eq}
-                      type="button"
-                      onClick={() => toggle('equipment', eq)}
-                      className={`p-3 rounded-xl border text-sm flex items-center justify-between ${
-                        active
-                          ? 'border-primary-500 bg-primary-50 text-primary-700'
-                          : 'border-gray-200 text-gray-600'
-                      }`}
-                    >
-                      {EQUIPMENT_LABELS[eq]}
-                      {active && <CheckCircleIcon className="w-4 h-4 text-primary-500" />}
-                    </button>
-                  );
-                })}
               </div>
-              {selectedEquipment.length === 0 && (
-                <p className="text-xs text-amber-600 mt-2">至少选择「自重」或一种器械</p>
-              )}
-            </div>
-          )}
+            )}
 
-          {step === 5 && (
-            <div>
-              <h2 className="font-semibold mb-3">杠铃片/哑铃的最小增量？</h2>
-              <div className="flex gap-2">
-                {INCREMENT_OPTIONS.map((inc) => {
-                  const active = selectedIncrements.includes(inc);
-                  return (
-                    <button
-                      key={inc}
-                      type="button"
-                      onClick={() => toggle('available_load_increments', inc)}
-                      className={`flex-1 py-3 rounded-xl border text-sm ${
-                        active
-                          ? 'border-primary-500 bg-primary-50 text-primary-700 font-semibold'
-                          : 'border-gray-200 text-gray-600'
-                      }`}
-                    >
-                      {inc} kg
-                    </button>
-                  );
-                })}
+            {step === 2 && (
+              <div className="space-y-6">
+                <div>
+                  <h2 className="font-semibold mb-3">每周训练几天？</h2>
+                  <div className="flex gap-2.5">
+                    {[2, 3, 4, 5].map((n) => (
+                      <button
+                        key={n}
+                        type="button"
+                        onClick={() => setValue('sessions_per_week', n)}
+                        className={`flex-1 py-3.5 rounded-2xl border text-center transition-all ${watch('sessions_per_week') === n ? CHIP_ACTIVE : CHIP_IDLE}`}
+                      >
+                        {n} 天
+                      </button>
+                    ))}
+                  </div>
+                </div>
+                <div>
+                  <h2 className="font-semibold mb-3">每次多久？</h2>
+                  <div className="flex gap-2.5">
+                    {[30, 45, 60, 90].map((n) => (
+                      <button
+                        key={n}
+                        type="button"
+                        onClick={() => setValue('minutes_per_session', n)}
+                        className={`flex-1 py-3.5 rounded-2xl border text-center text-sm transition-all ${watch('minutes_per_session') === n ? CHIP_ACTIVE : CHIP_IDLE}`}
+                      >
+                        {n} 分钟
+                      </button>
+                    ))}
+                  </div>
+                </div>
               </div>
-              <p className="text-xs text-gray-400 mt-2">用于判断能否安全加重（如两侧各加 1.25kg）</p>
-            </div>
-          )}
+            )}
 
-          <div className="flex justify-between pt-2">
+            {step === 3 && (
+              <div>
+                <h2 className="font-semibold mb-3">哪些天可以训练？</h2>
+                <div className="grid grid-cols-4 gap-2.5">
+                  {WEEKDAY_LABELS.map((label, i) => {
+                    const weekday = i + 1;
+                    const active = selectedWeekdays.includes(weekday);
+                    return (
+                      <button
+                        key={label}
+                        type="button"
+                        onClick={() => toggle('available_weekdays', weekday)}
+                        className={`py-3.5 rounded-2xl border text-sm transition-all animate-scale-in ${active ? CHIP_ACTIVE : CHIP_IDLE}`}
+                        style={{ animationDelay: `${i * 40}ms` }}
+                      >
+                        {label}
+                      </button>
+                    );
+                  })}
+                </div>
+                {selectedWeekdays.length !== watch('sessions_per_week') && (
+                  <p className="text-xs text-warning mt-2">
+                    已选 {selectedWeekdays.length} 天，与计划的每周 {watch('sessions_per_week')} 天
+                    {selectedWeekdays.length > watch('sessions_per_week') ? '（多于计划天数也可以）' : '（不足）'}
+                  </p>
+                )}
+              </div>
+            )}
+
+            {step === 4 && (
+              <div>
+                <h2 className="font-semibold mb-3">有哪些器械？</h2>
+                <div className="grid grid-cols-2 gap-2.5">
+                  {EQUIPMENT_OPTIONS.map((eq, i) => {
+                    const active = selectedEquipment.includes(eq);
+                    return (
+                      <button
+                        key={eq}
+                        type="button"
+                        onClick={() => toggle('equipment', eq)}
+                        className={`p-3.5 rounded-2xl border text-sm flex items-center justify-between transition-all animate-fade-in ${active ? CHIP_ACTIVE : CHIP_IDLE}`}
+                        style={{ animationDelay: `${i * 40}ms` }}
+                      >
+                        {EQUIPMENT_LABELS[eq]}
+                        {active && <CheckCircleIcon className="w-4 h-4" />}
+                      </button>
+                    );
+                  })}
+                </div>
+                {selectedEquipment.length === 0 && (
+                  <p className="text-xs text-warning mt-2">至少选择「自重」或一种器械</p>
+                )}
+              </div>
+            )}
+
+            {step === 5 && (
+              <div>
+                <h2 className="font-semibold mb-3">杠铃片/哑铃的最小增量？</h2>
+                <div className="flex gap-2.5">
+                  {INCREMENT_OPTIONS.map((inc) => {
+                    const active = selectedIncrements.includes(inc);
+                    return (
+                      <button
+                        key={inc}
+                        type="button"
+                        onClick={() => toggle('available_load_increments', inc)}
+                        className={`flex-1 py-3.5 rounded-2xl border text-sm transition-all ${active ? CHIP_ACTIVE : CHIP_IDLE}`}
+                      >
+                        {inc} kg
+                      </button>
+                    );
+                  })}
+                </div>
+                <p className="text-xs text-text-muted mt-2">用于判断能否安全加重（如两侧各加 1.25kg）</p>
+              </div>
+            )}
+          </div>
+
+          <div className="flex justify-between items-center pt-2">
             <button
               type="button"
               onClick={() => setStep((s) => Math.max(0, s - 1))}
               disabled={step === 0}
-              className="px-4 py-2 text-sm text-gray-500 disabled:invisible"
+              className="inline-flex items-center gap-0.5 px-3 py-2 text-sm text-text-secondary disabled:invisible hover:text-text transition-colors"
             >
-              上一步
+              <ChevronLeftIcon className="w-4 h-4" /> 上一步
             </button>
             {step < STEPS.length - 1 ? (
-              <button
-                type="button"
-                onClick={() => setStep((s) => s + 1)}
-                className="btn-primary px-6 py-2 text-sm"
-              >
+              <Button type="button" onClick={() => setStep((s) => s + 1)}>
                 下一步
-              </button>
+              </Button>
             ) : (
-              <button type="submit" className="btn-primary px-6 py-2 text-sm">
+              <Button type="submit">
                 完成建档
-              </button>
+              </Button>
             )}
           </div>
         </form>

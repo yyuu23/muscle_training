@@ -5,9 +5,11 @@
 
 import { useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { ArrowPathIcon, ExclamationTriangleIcon } from '@heroicons/react/24/outline';
+import { ArrowPathIcon, ExclamationTriangleIcon } from '@heroicons/react/24/solid';
 import { apiFetch } from '../../api/client';
 import { EmptyState, ErrorState } from '../../components/ErrorState';
+import { Button } from '../../components/ui/Button';
+import { SkeletonCards } from '../../components/ui/Skeleton';
 
 interface WeeklyReview {
   id: string;
@@ -31,11 +33,37 @@ interface WeeklyReview {
   created_at: string;
 }
 
-function StatCard({ label, value }: { label: string; value: string | number }) {
+function StatCard({ label, value, delay = 0 }: { label: string; value: string | number; delay?: number }) {
   return (
-    <div className="bg-gray-50 rounded-xl p-3 text-center">
-      <p className="text-xl font-bold text-gray-900">{value}</p>
-      <p className="text-xs text-gray-500 mt-0.5">{label}</p>
+    <div className="bg-surface-2 rounded-2xl p-3 text-center animate-slide-up" style={{ animationDelay: `${delay}ms` }}>
+      <p className="text-xl font-bold text-text tabular-nums animate-count-pop" key={value}>{value}</p>
+      <p className="text-xs text-text-muted mt-0.5">{label}</p>
+    </div>
+  );
+}
+
+/** Mini bar chart: working sets per session this week. */
+function SessionBars({ details }: { details: { started_at: string; total_working_sets: number }[] }) {
+  if (!details.length) return null;
+  const max = Math.max(...details.map((d) => d.total_working_sets), 1);
+  return (
+    <div className="card p-5">
+      <h3 className="text-sm font-semibold mb-3">每次训练工作组数</h3>
+      <div className="flex items-end gap-2 h-28">
+        {details.map((d, i) => (
+          <div key={i} className="flex-1 flex flex-col items-center gap-1.5 min-w-0">
+            <span className="text-[10px] text-text-muted tabular-nums">{d.total_working_sets}</span>
+            <div
+              className="w-full rounded-t-lg bg-gradient-to-t from-primary to-primary-400 transition-[height] duration-700 ease-out"
+              style={{ height: `${(d.total_working_sets / max) * 100}%`, transitionDelay: `${i * 80}ms` }}
+              title={`${new Date(d.started_at).toLocaleDateString('zh-CN')} · ${d.total_working_sets} 组`}
+            />
+            <span className="text-[10px] text-text-muted truncate w-full text-center">
+              {new Date(d.started_at).toLocaleDateString('zh-CN', { weekday: 'short' })}
+            </span>
+          </div>
+        ))}
+      </div>
     </div>
   );
 }
@@ -66,24 +94,20 @@ export function ReviewsPage() {
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['reviews'] }),
   });
 
-  if (isLoading) return <div className="max-w-2xl mx-auto px-4 py-6 text-sm text-gray-400">加载中…</div>;
-  if (isError) return <div className="max-w-2xl mx-auto px-4 py-6"><ErrorState message="无法加载复盘" onRetry={() => void refetch()} /></div>;
+  if (isLoading) return <div className="page-container py-6"><SkeletonCards count={3} /></div>;
+  if (isError) return <div className="page-container py-6"><ErrorState message="无法加载复盘" onRetry={() => void refetch()} /></div>;
 
   const reviews = data?.items ?? [];
   const selected = selectedId ? reviews.find((r) => r.id === selectedId) : reviews[0];
 
   return (
-    <div className="max-w-2xl mx-auto px-4 py-6 space-y-6">
+    <div className="page-container py-6 space-y-5">
       <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold text-gray-900">周复盘</h1>
-        <button
-          onClick={() => generate.mutate()}
-          disabled={generate.isPending}
-          className="btn-primary px-4 py-2 text-sm inline-flex items-center gap-2"
-        >
-          <ArrowPathIcon className={`w-4 h-4 ${generate.isPending ? 'animate-spin' : ''}`} />
+        <h1 className="text-2xl font-bold text-text">周复盘</h1>
+        <Button size="sm" onClick={() => generate.mutate()} loading={generate.isPending}>
+          {!generate.isPending && <ArrowPathIcon className="w-4 h-4" />}
           {generate.isPending ? '生成中…' : '生成本周复盘'}
-        </button>
+        </Button>
       </div>
 
       {reviews.length === 0 ? (
@@ -96,45 +120,50 @@ export function ReviewsPage() {
       ) : (
         <>
           {/* Review selector */}
-          <div className="flex gap-2 overflow-x-auto pb-1">
+          <div className="flex gap-2 overflow-x-auto pb-1 scrollbar-thin">
             {reviews.map((r) => (
               <button
                 key={r.id}
                 onClick={() => setSelectedId(r.id)}
-                className={`shrink-0 px-3 py-2 rounded-xl text-xs border ${
+                className={`shrink-0 px-3.5 py-2 rounded-xl text-xs border transition-all ${
                   selected?.id === r.id
-                    ? 'border-primary-500 bg-primary-50 text-primary-700 font-medium'
-                    : 'border-gray-200 text-gray-600'
+                    ? 'border-primary bg-primary-soft text-primary font-semibold shadow-soft'
+                    : 'border-border-default text-text-secondary hover:border-border-strong'
                 }`}
               >
                 {weekLabel(r.week_start)}
-                {r.stale && ' ·已过期'}
+                {r.stale && ' · 已过期'}
               </button>
             ))}
           </div>
 
           {selected && (
-            <div className="space-y-4">
+            <div className="space-y-4 xl:grid xl:grid-cols-[340px_minmax(0,1fr)] xl:gap-5 xl:items-start xl:space-y-0">
+              <div className="space-y-4">
               {selected.stale && (
-                <div className="card p-4 border-amber-100 bg-amber-50 flex items-center justify-between gap-3">
-                  <p className="text-sm text-amber-800 flex items-center gap-2">
+                <div className="card p-4 !border-warning/30 !bg-warning-soft flex items-center justify-between gap-3 animate-scale-in">
+                  <p className="text-sm text-warning flex items-center gap-2">
                     <ExclamationTriangleIcon className="w-4 h-4 shrink-0" />
                     生成后有迟到日志或更正，此复盘基于旧数据
                   </p>
                   <button
                     onClick={() => regenerate.mutate(selected.id)}
                     disabled={regenerate.isPending}
-                    className="text-xs px-3 py-1.5 rounded-lg bg-amber-600 text-white shrink-0"
+                    className="btn btn-sm text-xs shrink-0 !bg-warning !text-white hover:brightness-95"
                   >
                     重新生成
                   </button>
                 </div>
               )}
 
-              <div className="grid grid-cols-4 gap-2">
-                <StatCard label="完成训练" value={`${selected.statistics.sessions_completed ?? 0}/${selected.statistics.planned_days ?? selected.statistics.sessions_total ?? 0}`} />
-                <StatCard label="总工作组数" value={selected.statistics.total_working_sets ?? 0} />
-                <StatCard label="总次数" value={selected.statistics.total_working_reps ?? 0} />
+              <div className="grid grid-cols-2 xl:grid-cols-1 gap-2.5">
+                <StatCard
+                  label="完成训练"
+                  value={`${selected.statistics.sessions_completed ?? 0}/${selected.statistics.planned_days ?? selected.statistics.sessions_total ?? 0}`}
+                  delay={0}
+                />
+                <StatCard label="总工作组数" value={selected.statistics.total_working_sets ?? 0} delay={60} />
+                <StatCard label="总次数" value={selected.statistics.total_working_reps ?? 0} delay={120} />
                 <StatCard
                   label="体重变化"
                   value={
@@ -142,19 +171,27 @@ export function ReviewsPage() {
                       ? `${(selected.statistics.weight_last - selected.statistics.weight_first).toFixed(1)}kg`
                       : '—'
                   }
+                  delay={180}
                 />
               </div>
+              </div>
 
-              <div className="card p-5">
-                <p className="text-xs text-gray-400 mb-2">
+              <div className="space-y-4">
+              {selected.statistics.session_details && selected.statistics.session_details.length > 0 && (
+                <SessionBars details={selected.statistics.session_details} />
+              )}
+
+              <div className="card p-5 animate-slide-up" style={{ animationDelay: '120ms' }}>
+                <p className="text-xs text-text-muted mb-2.5">
                   数据截至 {new Date(selected.data_cutoff_at).toLocaleString('zh-CN')}
                   {' '}· 数据修订 {selected.data_revision}
                 </p>
                 {selected.narrative ? (
-                  <div className="prose prose-sm max-w-none text-gray-700 whitespace-pre-wrap">{selected.narrative}</div>
+                  <div className="text-sm text-text-secondary leading-relaxed whitespace-pre-wrap">{selected.narrative}</div>
                 ) : (
                   <EmptyState title="本周没有足够记录，未生成分析" description="恢复记录后可重新生成" />
                 )}
+              </div>
               </div>
             </div>
           )}

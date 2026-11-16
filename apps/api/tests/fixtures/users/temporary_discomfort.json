@@ -1,23 +1,26 @@
 {
-  "username": "temp_discomfort",
-  "display_name": "临时不适用户",
+  "_doc": "临时不适（plan §5.3/§7.4：保存为未解决反馈，下次训练前必须重新询问，且不解释为疾病）",
+  "username": "fixture_discomfort",
   "profile": {
-    "goal": "力量提升",
-    "training_experience_months": 30,
-    "sessions_per_week": 4,
-    "minutes_per_session": 75,
-    "available_weekdays": [1, 2, 4, 5],
-    "equipment": ["barbell", "bench", "pull-up-bar"],
-    "available_load_increments": ["2.5"]
+    "goal": "增肌",
+    "training_experience_months": 10,
+    "sessions_per_week": 3,
+    "minutes_per_session": 60,
+    "available_weekdays": [1, 2, 4],
+    "equipment": ["barbell", "dumbbell", "bench"],
+    "available_load_increments": ["1.25", "2.5"]
   },
-  "statement": "上周硬拉之后腰有点不舒服，这两周先不练硬拉",
-  "expected_behavior": {
-    "fact_kind": "unresolved_discomfort",
-    "must_not": ["解释成腰椎疾病或诊断", "自动永久排除硬拉"],
-    "must": [
-      "保存为未解决不适反馈",
-      "后续相关训练前重新询问恢复情况",
-      "期间相关动作进阶建议被阻止"
-    ]
+  "unresolved_discomfort_fact": {
+    "kind": "unresolved_discomfort",
+    "value": "左肘在深蹲低杠位支撑时有轻微不适",
+    "provenance": "user_statement",
+    "reported_at_session": "2026-11-05"
+  },
+  "scenario": {
+    "next_workout_precheck_must_ask": true,
+    "precheck_question": "之前的左肘不适是否已恢复？",
+    "must_not_be_interpreted_as": ["诊断", "伤病结论", "医学事实"],
+    "if_recovered": "事实标记 superseded，不再提示",
+    "if_not_recovered": "继续保留并再次询问；不自动从计划中删除动作，只提示"
   }
 }

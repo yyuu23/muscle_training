@@ -1,5 +1,5 @@
 /**
- * Quick stats — this week's local aggregates.
+ * Quick stats — this week's local aggregates (animated count-up).
  *
  * Per plan §7.5: no cross-exercise tonnage in v1; count sessions and
  * recorded working sets instead.
@@ -10,6 +10,7 @@ import { useLiveQuery } from 'dexie-react-hooks';
 import { db } from '../../offline/database';
 import type { LocalWorkoutSession } from '../../offline/types';
 import { useAuth } from '../auth/useAuth';
+import { StatCard } from '../../components/ui/Card';
 
 export function QuickStats() {
   const { user } = useAuth();
@@ -49,59 +50,32 @@ export function QuickStats() {
   );
 
   return (
-    <div className="grid grid-cols-3 gap-3 animate-slide-up">
+    <div className="grid grid-cols-3 lg:grid-cols-1 gap-3">
       <StatCard
         icon={<CalendarIcon className="w-5 h-5" />}
         label="本周训练"
         value={stats?.weekWorkouts ?? 0}
         unit="次"
-        color="primary"
+        tone="primary"
+        index={0}
       />
       <StatCard
         icon={<TrophyIcon className="w-5 h-5" />}
         label="本周组数"
         value={stats?.weekSets ?? 0}
         unit="组"
-        color="success"
+        tone="success"
+        index={1}
       />
       <StatCard
         icon={<ScaleIcon className="w-5 h-5" />}
         label="最近体重"
         value={stats?.latestWeight ? parseFloat(stats.latestWeight) : 0}
         unit={stats?.latestWeight ? 'kg' : ''}
-        color="accent"
-        empty={stats?.latestWeight ? false : true}
+        tone="warning"
+        empty={!stats?.latestWeight}
+        index={2}
       />
-    </div>
-  );
-}
-
-interface StatCardProps {
-  icon: React.ReactNode;
-  label: string;
-  value: number;
-  unit: string;
-  color: 'primary' | 'success' | 'accent';
-  empty?: boolean;
-}
-
-function StatCard({ icon, label, value, unit, color, empty }: StatCardProps) {
-  const colorClasses = {
-    primary: 'bg-primary-50 text-primary-600',
-    success: 'bg-green-50 text-green-600',
-    accent: 'bg-amber-50 text-amber-600',
-  };
-
-  return (
-    <div className="card p-4">
-      <div className={`w-10 h-10 rounded-xl ${colorClasses[color]} flex items-center justify-center mb-2`}>
-        {icon}
-      </div>
-      <div className="text-2xl font-bold">{empty ? '—' : value}</div>
-      <div className="text-xs text-gray-500 mt-0.5">
-        {label}
-        {!empty && unit && <span className="text-gray-400"> ({unit})</span>}
-      </div>
     </div>
   );
 }

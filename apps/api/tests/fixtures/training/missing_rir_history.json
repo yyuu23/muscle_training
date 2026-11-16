@@ -1,27 +1,30 @@
 {
-  "description": "缺 RIR 的历史：次数达标但无法确认进阶条件，应阻止加重建议",
-  "exercise_slug": "squat",
-  "equipment_label": "barbell",
+  "_doc": "RIR 全部留空的训练历史（plan §7.6 条件6不满足：用户记录的 RIR 不符合模板条件 → 不产生进阶候选）",
+  "user_id": "00000000-aaaa-4bbb-8ccc-000000000002",
+  "exercise_id": "00000000-eeee-4fff-8aaa-0000000000a1",
+  "exercise_content_version": 3,
+  "equipment": "barbell",
   "load_mode": "total_external",
-  "target": {"working_sets": 3, "reps_min": 8, "reps_max": 10, "rir_condition": ">=2"},
+  "available_increment_kg": "2.50",
   "sessions": [
     {
-      "date": "2026-10-20",
-      "working_sets_recorded": 3,
-      "top_load_kg": "60.00",
-      "reps_top": 10,
-      "rir": null
+      "started_at": "2026-10-20T10:00:00+08:00",
+      "working_sets": [
+        { "set_index": 1, "set_kind": "work", "status": "completed", "load_kg": "40.00", "reps": 8, "rir": null },
+        { "set_index": 2, "set_kind": "work", "status": "completed", "load_kg": "40.00", "reps": 8, "rir": null }
+      ]
     },
     {
-      "date": "2026-10-27",
-      "working_sets_recorded": 3,
-      "top_load_kg": "60.00",
-      "reps_top": 10,
-      "rir": null
+      "started_at": "2026-10-27T10:00:00+08:00",
+      "working_sets": [
+        { "set_index": 1, "set_kind": "work", "status": "completed", "load_kg": "40.00", "reps": 12, "rir": null },
+        { "set_index": 2, "set_kind": "work", "status": "completed", "load_kg": "40.00", "reps": 12, "rir": null }
+      ]
     }
   ],
-  "expected_progression": {
-    "kind": "hold",
-    "reason_contains": "RIR"
+  "expected": {
+    "progression_candidate": false,
+    "blocked_by": "rir_missing",
+    "note": "次数达标但 RIR 未知，不能确认强度余量，保持当前负荷"
   }
 }

@@ -3,7 +3,8 @@
  * (plan §4.7 / §8.1)
  */
 
-import { ArrowUpIcon, ArrowDownIcon, PlusIcon, MinusIcon } from '@heroicons/react/24/outline';
+import { ArrowUpIcon, ArrowDownIcon, PlusIcon, MinusIcon } from '@heroicons/react/24/solid';
+import { Badge } from './ui/Badge';
 
 export interface DiffEntry {
   kind: 'exercise_added' | 'exercise_removed' | 'exercise_modified';
@@ -38,55 +39,65 @@ const DAY_LABELS: Record<number, string> = {
 
 export function PlanDiff({ diff }: { diff: PlanDiffData | null }) {
   if (!diff || diff.day_changes.length === 0) {
-    return <p className="text-sm text-gray-400">与当前计划没有结构性差异。</p>;
+    return <p className="text-sm text-text-muted">与当前计划没有结构性差异。</p>;
   }
 
   return (
-    <div className="space-y-4">
-      {diff.day_changes.map((day) => (
-        <div key={day.day_key} className="border border-gray-100 rounded-xl p-4">
-          <div className="flex items-center gap-2 mb-3">
-            <span className="font-medium text-sm text-gray-900">{day.day_key}</span>
-            {day.kind === 'day_added' && (
-              <span className="text-xs bg-green-50 text-green-700 px-2 py-0.5 rounded-full">新增训练日</span>
-            )}
-            {day.kind === 'day_removed' && (
-              <span className="text-xs bg-red-50 text-red-700 px-2 py-0.5 rounded-full">移除训练日</span>
-            )}
+    <div className="space-y-3">
+      {diff.day_changes.map((day, di) => (
+        <div
+          key={day.day_key}
+          className="border border-border-default rounded-2xl p-4 animate-slide-up"
+          style={{ animationDelay: `${di * 60}ms` }}
+        >
+          <div className="flex items-center gap-2 mb-3 flex-wrap">
+            <span className="font-medium text-sm text-text">{day.day_key}</span>
+            {day.kind === 'day_added' && <Badge tone="success">新增训练日</Badge>}
+            {day.kind === 'day_removed' && <Badge tone="danger">移除训练日</Badge>}
             {day.estimated_minutes && (
-              <span className="text-xs text-gray-500">
+              <span className="text-xs text-text-muted">
                 时长 {day.estimated_minutes.old ?? '—'} → {day.estimated_minutes.new} 分钟
               </span>
             )}
           </div>
 
           <ul className="space-y-2">
-            {day.items.map((item) => (
-              <li key={item.item_id} className="flex items-start gap-2 text-sm">
+            {day.items.map((item, i) => (
+              <li
+                key={item.item_id}
+                className="flex items-start gap-2 text-sm animate-fade-in"
+                style={{ animationDelay: `${i * 40}ms` }}
+              >
                 {item.kind === 'exercise_added' && (
-                  <PlusIcon className="w-4 h-4 text-green-600 mt-0.5 shrink-0" />
+                  <span className="mt-0.5 shrink-0 w-5 h-5 rounded-lg bg-success-soft text-success inline-flex items-center justify-center">
+                    <PlusIcon className="w-3 h-3" />
+                  </span>
                 )}
                 {item.kind === 'exercise_removed' && (
-                  <MinusIcon className="w-4 h-4 text-red-600 mt-0.5 shrink-0" />
+                  <span className="mt-0.5 shrink-0 w-5 h-5 rounded-lg bg-danger-soft text-danger inline-flex items-center justify-center">
+                    <MinusIcon className="w-3 h-3" />
+                  </span>
                 )}
                 {item.kind === 'exercise_modified' && (
-                  <ArrowUpIcon className="w-4 h-4 text-amber-600 mt-0.5 shrink-0" />
+                  <span className="mt-0.5 shrink-0 w-5 h-5 rounded-lg bg-warning-soft text-warning inline-flex items-center justify-center">
+                    <ArrowUpIcon className="w-3 h-3" />
+                  </span>
                 )}
-                <div className="flex-1">
-                  <span className="text-gray-700">{item.item_id}</span>
+                <div className="flex-1 min-w-0">
+                  <span className="text-text-secondary">{item.item_id}</span>
                   {item.changes && (
-                    <div className="mt-1 flex flex-wrap gap-2">
+                    <div className="mt-1.5 flex flex-wrap gap-1.5">
                       {Object.entries(item.changes).map(([field, change]) => (
                         <span
                           key={field}
-                          className="text-xs bg-gray-50 border border-gray-100 rounded px-2 py-0.5 text-gray-600"
+                          className="text-xs bg-surface-2 border border-border-default rounded-lg px-2 py-1 text-text-secondary"
                         >
                           {FIELD_LABELS[field] ?? field}:
-                          <span className="text-gray-400 line-through mx-1">
+                          <span className="text-text-muted line-through mx-1">
                             {String(change.old ?? '空')}
                           </span>
-                          <ArrowDownIcon className="w-3 h-3 inline rotate-[-90deg]" />
-                          <span className="text-gray-900 font-medium mx-1">
+                          <ArrowDownIcon className="w-3 h-3 inline rotate-[-90deg] text-primary" />
+                          <span className="text-text font-semibold mx-1">
                             {String(change.new ?? '空')}
                           </span>
                         </span>
@@ -97,7 +108,7 @@ export function PlanDiff({ diff }: { diff: PlanDiffData | null }) {
               </li>
             ))}
             {day.items.length === 0 && day.kind === 'day_modified' && (
-              <li className="text-xs text-gray-400">仅时长调整</li>
+              <li className="text-xs text-text-muted">仅时长调整</li>
             )}
           </ul>
         </div>

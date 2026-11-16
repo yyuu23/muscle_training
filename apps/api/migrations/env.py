@@ -26,9 +26,11 @@ if config.config_file_name is not None:
 # Add your model's MetaData object here for 'autogenerate' support
 target_metadata = Base.metadata
 
-# Load database URL from settings
+# Load database URL from settings — migrations prefer the dedicated
+# migration_role DSN (plan §9.3: the API role must not own schema).
 settings = get_settings()
-config.set_main_option("sqlalchemy.url", str(settings.database_url))
+MIGRATION_URL = str(settings.migration_database_url or settings.database_url)
+config.set_main_option("sqlalchemy.url", MIGRATION_URL)
 
 
 def run_migrations_offline() -> None:
@@ -72,7 +74,7 @@ def do_run_migrations(connection: Connection) -> None:
 async def run_async_migrations() -> None:
     """Run migrations in 'online' mode with async engine"""
     configuration = config.get_section(config.config_ini_section, {})
-    configuration["sqlalchemy.url"] = str(settings.database_url)
+    configuration["sqlalchemy.url"] = MIGRATION_URL
 
     connectable = async_engine_from_config(
         configuration,

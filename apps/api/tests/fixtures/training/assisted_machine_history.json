@@ -1,24 +1,28 @@
 {
-  "description": "助力器械历史：负荷是配重抵消的助力值，数字下降可能代表进步",
-  "exercise_slug": "assisted-pull-up",
-  "equipment_label": "assisted-machine",
+  "_doc": "助力器械训练历史（plan §7.6：自重/弹力带/助力第一版只记录与解释，不产生数字加重建议）",
+  "user_id": "00000000-aaaa-4bbb-8ccc-000000000004",
+  "exercise_id": "00000000-eeee-4fff-8aaa-0000000000a3",
+  "exercise_content_version": 1,
   "load_mode": "assistance",
   "sessions": [
     {
-      "date": "2026-09-30",
-      "assistance_kg": "25.00",
-      "reps": 8,
-      "note": "助力 25kg，完成 8 次"
+      "started_at": "2026-10-15T10:00:00+08:00",
+      "working_sets": [
+        { "set_index": 1, "set_kind": "work", "status": "completed", "load_kg": "-15.00", "load_mode": "assistance", "reps": 8, "rir": 2 },
+        { "set_index": 2, "set_kind": "work", "status": "completed", "load_kg": "-15.00", "load_mode": "assistance", "reps": 8, "rir": 1 }
+      ]
     },
     {
-      "date": "2026-10-14",
-      "assistance_kg": "15.00",
-      "reps": 8,
-      "note": "助力降到 15kg，仍完成 8 次（进步）"
+      "started_at": "2026-10-22T10:00:00+08:00",
+      "working_sets": [
+        { "set_index": 1, "set_kind": "work", "status": "completed", "load_kg": "-10.00", "load_mode": "assistance", "reps": 8, "rir": 1 },
+        { "set_index": 2, "set_kind": "work", "status": "completed", "load_kg": "-10.00", "load_mode": "assistance", "reps": 8, "rir": 1 }
+      ]
     }
   ],
-  "expected_behavior": {
-    "progression": "不产生数字加重建议（第一版只记录与解释）",
-    "direction": "助力数值下降通常代表进步，不得按常规负荷方向解读"
+  "expected": {
+    "progression_candidate": false,
+    "behavior": "record_and_explain_only",
+    "note": "助力减少 5kg 是事实记录；第一版不生成\"加重\"数字建议"
   }
 }

@@ -17,6 +17,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.api.errors import ErrorCode
 from app.config import get_settings
 from app.db.models.auth import AuthSession, User
+from app.db.scope import set_user_context
 from app.db.session import get_db_session
 
 SAFE_METHODS = {"GET", "HEAD", "OPTIONS"}
@@ -95,6 +96,12 @@ async def get_current_user(
     session: AuthSession = Depends(get_current_session),
     db: AsyncSession = Depends(get_db_session),
 ) -> User:
+    # Bind the request's session to the authenticated user BEFORE any
+    # business query: RLS policies read the transaction-local
+    # app.user_id set by this call (plan §9.3). FastAPI caches
+    # get_db_session, so routers share this same scoped session.
+    await set_user_context(db, session.user_id)
+
     result = await db.execute(
         select(User)
         .where(User.id == session.user_id)

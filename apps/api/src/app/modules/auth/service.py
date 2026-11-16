@@ -21,6 +21,7 @@ from app.db.models.auth import (
     User,
 )
 from app.db.models.profile import Profile, UserState
+from app.db.scope import set_user_context
 from app.modules.auth.schemas import LoginRequest, RegisterRequest
 from app.utils.auth import (
     calculate_invite_expiry,
@@ -162,6 +163,10 @@ class AuthService:
         )
         self.db.add(user)
         await self.db.flush()
+
+        # Bind the new user before touching RLS-protected tables
+        # (profiles / user_state require a matching app.user_id context).
+        await set_user_context(self.db, user.id)
 
         # Consume invite in the same transaction as user creation
         invite.used_by = user.id

@@ -15,6 +15,7 @@ import logging
 import signal
 
 from app.config import get_settings
+from app.db.scope import set_user_context
 from app.db.session import async_session_maker
 from app.jobs.handlers import GENERATION_JOBS, HANDLERS
 from app.jobs.queue import claim_jobs, reclaim_expired_jobs, renew_lease, resume_waiting_jobs
@@ -111,6 +112,10 @@ class Worker:
                 job = (await db.execute(select(Job).where(Job.id == job_id))).scalar_one_or_none()
                 if job is None:
                     return
+                # Re-scope to the job owner before touching private
+                # business tables (plan §9.3 job_dispatcher semantics).
+                if job.owner_user_id is not None:
+                    await set_user_context(db, job.owner_user_id)
                 logger.info("running job %s type=%s attempt=%d", job_id, job_type, job.attempts)
                 await handler(db, job)
                 logger.info("job %s finished", job_id)

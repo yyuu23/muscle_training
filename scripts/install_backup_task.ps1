@@ -1,8 +1,9 @@
-# Windows 周备份下载计划任务（plan §9.7）
-# - 每周执行一次；错过（关机）后尽快补执行
-# - 隐藏窗口运行；凭据放用户权限限制的配置文件，不放命令行参数
+# Windows weekly backup-download scheduled task (plan §9.7)
+# - Runs weekly; runs ASAP after a missed start (machine was off)
+# - Hidden window; credentials live in a user-restricted config file,
+#   never on the command line.
 #
-# 用法：
+# Usage:
 #   .\scripts\install_backup_task.ps1 -DownloadScript <abs-path>\download_backup.py -OutputDir D:\backups\muscle
 
 param(
@@ -20,10 +21,12 @@ $ErrorActionPreference = "Stop"
 
 $python = (Get-Command python).Source
 
-# 动作：下载脚本 + 输出目录重定向到日志（凭据从用户配置文件/环境变量读取）
-$action = New-ScheduledTaskAction -Execute $python -Argument """$DownloadScript"" --output-dir ""$OutputDir""" -WorkingDirectory (Split-Path -Parent $DownloadScript)
+# Hidden window: run python via powershell -WindowStyle Hidden
+$action = New-ScheduledTaskAction `
+    -Execute "powershell.exe" `
+    -Argument "-NoProfile -WindowStyle Hidden -Command ""& '$python' '$DownloadScript' --output-dir '$OutputDir'"" " `
+    -WorkingDirectory (Split-Path -Parent $DownloadScript)
 
-# 触发器：每周一 09:00，错过尽快补执行（StartWhenAvailable）
 $trigger = New-ScheduledTaskTrigger -Weekly -DaysOfWeek Monday -At $RunAt
 $settings = New-ScheduledTaskSettingsSet `
     -StartWhenAvailable `
@@ -31,7 +34,7 @@ $settings = New-ScheduledTaskSettingsSet `
     -DontStopIfGoingOnBatteries `
     -ExecutionTimeLimit (New-TimeSpan -Hours 2)
 
-# 隐藏窗口运行
+# Hidden window
 $principal = New-ScheduledTaskPrincipal -UserId $env:USERNAME -LogonType Interactive -RunLevel Limited
 
 Register-ScheduledTask `
@@ -42,16 +45,17 @@ Register-ScheduledTask `
     -Principal $principal `
     -Force | Out-Null
 
-Write-Host "[OK] 计划任务已安装: $TaskName"
-Write-Host "     每周一 $RunAt 下载到 $OutputDir（错过后开机尽快补执行）"
+Write-Host "[OK] Scheduled task installed: $TaskName"
+Write-Host "     Every Monday $RunAt downloads to $OutputDir (catches up ASAP after a missed run)"
 Write-Host ""
-Write-Host "凭据配置（用户权限限制，不入命令行）："
-Write-Host "  1. 复制 .env.example 中备份相关变量到 `$HOME\.muscle_training\backup.conf"
+Write-Host "Credentials (user-restricted, never on the command line):"
+Write-Host "  1. Create $env:USERPROFILE\.muscle_training\backup.conf with:"
 Write-Host "     [backup]"
 Write-Host "     OSS_ENDPOINT=..."
-Write-Host "     OSS_ACCESS_KEY_ID=...(只读备份凭据)"
+Write-Host "     OSS_ACCESS_KEY_ID=...(read-only backup credentials)"
 Write-Host "     OSS_ACCESS_KEY_SECRET=..."
 Write-Host "     BACKUP_BUCKET=..."
-Write-Host "  2. icacls `"$env:USERPROFILE\.muscle_training\backup.conf`" /inheritance:r /grant:r `"${env:USERNAME}:R`""
+Write-Host "  2. Lock it down:"
+Write-Host "     icacls ""$env:USERPROFILE\.muscle_training\backup.conf"" /inheritance:r /grant:r ""${env:USERNAME}:R"""
 Write-Host ""
-Write-Host "age 私钥保存在本机或离线位置；云端只有公钥。"
+Write-Host "The age private key stays on this machine (or offline); only the public key lives in the cloud."

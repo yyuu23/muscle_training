@@ -7,6 +7,7 @@ from collections.abc import AsyncGenerator
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 
 from app.config import get_settings
+from app.db.scope import install_user_context_hook
 
 settings = get_settings()
 
@@ -27,6 +28,10 @@ async_session_maker = async_sessionmaker(
     autocommit=False,
     autoflush=False,
 )
+
+# RLS user-context hook (plan §9.3): re-applies the transaction-local
+# app.user_id setting on every transaction begin.
+install_user_context_hook(async_session_maker)
 
 
 async def get_db_session() -> AsyncGenerator[AsyncSession, None]:

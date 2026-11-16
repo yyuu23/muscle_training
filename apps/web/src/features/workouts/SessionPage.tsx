@@ -1,18 +1,29 @@
 /**
  * Session page (plan §8.1 训练记录页): per-set logging with load/reps/
- * RIR, rest timer, temporary substitution, completion. Offline-first:
- * every write is local + outbox.
+ * RIR, rest timer (ring countdown), temporary substitution, completion
+ * with celebration. Offline-first: every write is local + outbox.
+ *
+ * High-frequency interactions (记一组) get instant feedback only — no
+ * delay-inducing animations.
  */
 
 import { useEffect, useMemo, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { useLiveQuery } from 'dexie-react-hooks';
-import { CheckIcon, ClockIcon, PlusIcon, FireIcon } from '@heroicons/react/24/outline';
+import {
+  CheckIcon, PlusIcon, FireIcon, SparklesIcon, XMarkIcon,
+} from '@heroicons/react/24/solid';
 import { db } from '../../offline/database';
 import { workoutActions, useWorkoutSession } from './useWorkoutSession';
 import { useAuth } from '../auth/useAuth';
 import { EmptyState } from '../../components/ErrorState';
 import { useSyncStatus } from '../../hooks/useSync';
+import { Badge } from '../../components/ui/Badge';
+import { Button } from '../../components/ui/Button';
+import { ProgressRing } from '../../components/ui/ProgressRing';
+import { Sheet } from '../../components/ui/Sheet';
+import { Confetti } from '../../components/ui/Confetti';
+import { useToast } from '../../components/ui/Toast';
 
 function RestTimer({ seconds, onDone }: { seconds: number; onDone: () => void }) {
   const [remaining, setRemaining] = useState(seconds);
@@ -30,12 +41,15 @@ function RestTimer({ seconds, onDone }: { seconds: number; onDone: () => void })
     return () => clearTimeout(timer);
   }, [remaining, onDone]);
 
-  const display = `${String(Math.floor(remaining / 60)).padStart(2, '0')}:${String(remaining % 60).padStart(2, '0')}`;
   return (
-    <div className="fixed bottom-24 left-1/2 -translate-x-1/2 z-40 bg-gray-900 text-white px-5 py-3 rounded-2xl shadow-xl flex items-center gap-2">
-      <ClockIcon className="w-5 h-5 text-primary-300" />
-      <span className="font-mono text-lg font-semibold">{display}</span>
-      <span className="text-xs text-gray-400">休息中</span>
+    <div className="fixed bottom-24 lg:bottom-8 left-1/2 -translate-x-1/2 z-40 animate-scale-in">
+      <div className="bg-surface border border-border-default shadow-strong rounded-3xl px-5 py-3 flex items-center gap-3">
+        <ProgressRing total={seconds} remaining={remaining} size={56} />
+        <div>
+          <p className="text-sm font-semibold text-text">休息中</p>
+          <p className="text-xs text-text-muted">恢复呼吸，准备下一组</p>
+        </div>
+      </div>
     </div>
   );
 }
@@ -45,6 +59,7 @@ export function SessionPage() {
   const navigate = useNavigate();
   const { user } = useAuth();
   const { status, pendingCount } = useSyncStatus(user?.id ?? null);
+  const toast = useToast();
   const userId = user?.id ?? '';
 
   const { session, exercises, sets } = useWorkoutSession(id ?? null);
@@ -52,7 +67,10 @@ export function SessionPage() {
 
   const [restSeconds, setRestSeconds] = useState<number | null>(null);
   const [showAdd, setShowAdd] = useState(false);
-  const [discomfortPrompt, setDiscomfortPrompt] = useState<string | null>(null);
+  const [discomfortOpen, setDiscomfortOpen] = useState(false);
+  const [discomfortText, setDiscomfortText] = useState('');
+  const [discomfortSaved, setDiscomfortSaved] = useState<string | null>(null);
+  const [celebrate, setCelebrate] = useState(0);
 
   const exerciseById = useMemo(() => new Map((catalog ?? []).map((e) => [e.id, e])), [catalog]);
 
@@ -68,9 +86,9 @@ export function SessionPage() {
 
   if (!session) {
     return (
-      <div className="max-w-lg mx-auto px-4 py-10">
+      <div className="page-container py-10">
         <EmptyState title="训练不存在" action={
-          <button onClick={() => navigate('/today')} className="btn-primary px-4 py-2 text-sm">返回今日</button>
+          <Button size="sm" onClick={() => navigate('/today')}>返回今日</Button>
         } />
       </div>
     );
@@ -78,17 +96,23 @@ export function SessionPage() {
 
   if (session.status !== 'in_progress') {
     return (
-      <div className="max-w-lg mx-auto px-4 py-10 space-y-4">
-        <div className="card p-6 text-center">
-          <CheckIcon className="w-10 h-10 text-green-500 mx-auto mb-2" />
-          <p className="font-semibold">训练已完成</p>
-          <p className="text-sm text-gray-500 mt-1">
-            {new Date(session.started_at).toLocaleString('zh-CN')} · {(sets ?? []).length} 组
+      <div className="page-container py-10 space-y-4">
+        <Confetti trigger={celebrate} />
+        <div className="card p-8 text-center animate-scale-in">
+          <span className="inline-flex w-16 h-16 rounded-3xl bg-success-soft text-success items-center justify-center mb-3">
+            <CheckIcon className="w-8 h-8" />
+          </span>
+          <p className="font-semibold text-lg text-text">训练已完成</p>
+          <p className="text-sm text-text-secondary mt-1.5">
+            {new Date(session.started_at).toLocaleString('zh-CN')} · 共 {(sets ?? []).length} 组
+          </p>
+          <p className="text-xs text-text-muted mt-3 flex items-center justify-center gap-1">
+            <SparklesIcon className="w-3.5 h-3.5" /> 干得漂亮，继续保持
           </p>
         </div>
-        <button onClick={() => navigate('/history')} className="btn-primary w-full py-3 text-sm">
+        <Button className="w-full py-3" onClick={() => navigate('/history')}>
           查看历史记录
-        </button>
+        </Button>
       </div>
     );
   }
@@ -100,28 +124,31 @@ export function SessionPage() {
     restSeconds?: number,
   ) => {
     void workoutActions.logSet(userId, sessionExerciseId, { ...input, set_index: setIndex });
+    toast.show(input.status === 'skipped' ? '已记为跳过' : '已记录 1 组');
     if (restSeconds && input.status !== 'skipped') setRestSeconds(restSeconds);
   };
 
+  const completeWorkout = async () => {
+    await workoutActions.complete(userId, session.id, discomfortSaved);
+    setCelebrate((c) => c + 1);
+    toast.show('训练完成，辛苦了！', 'success');
+    window.setTimeout(() => navigate('/today'), 900);
+  };
+
   return (
-    <div className="max-w-lg mx-auto px-4 py-5 pb-28 space-y-4">
-      <div className="flex items-center justify-between">
+    <div className="page-container py-5 pb-28 lg:pb-10 space-y-4">
+      <Confetti trigger={celebrate} />
+      <div className="flex items-center justify-between animate-fade-in">
         <div>
-          <h1 className="text-xl font-bold text-gray-900">训练中</h1>
-          <p className="text-xs text-gray-400">
+          <h1 className="text-xl font-bold text-text">训练中</h1>
+          <p className="text-xs text-text-muted mt-0.5">
             {new Date(session.started_at).toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' })} 开始
             {status === 'offline' ? ' · 离线记录中' : pendingCount > 0 ? ` · ${pendingCount} 条待同步` : ''}
           </p>
         </div>
-        <button
-          onClick={async () => {
-            await workoutActions.complete(userId, session.id, discomfortPrompt);
-            navigate('/today');
-          }}
-          className="btn-primary px-4 py-2 text-sm inline-flex items-center gap-1"
-        >
+        <Button size="sm" onClick={completeWorkout}>
           <CheckIcon className="w-4 h-4" /> 完成训练
-        </button>
+        </Button>
       </div>
 
       {/* Exercises */}
@@ -130,44 +157,55 @@ export function SessionPage() {
           <EmptyState title="还没有添加动作" description="从动作库选择，或按计划开始" />
         </div>
       ) : (
-        (exercises ?? []).map((ex) => {
+        <div className="space-y-4 lg:grid lg:grid-cols-2 lg:gap-4 lg:space-y-0">
+        {(exercises ?? []).map((ex, exIdx) => {
           const info = exerciseById.get(ex.exercise_id);
           const exSets = (setsByExercise.get(ex.id) ?? []).slice().sort((a, b) => a.set_index - b.set_index);
           const nextIndex = (exSets[exSets.length - 1]?.set_index ?? 0) + 1;
           return (
-            <div key={ex.id} className="card p-4">
+            <div
+              key={ex.id}
+              className="card card-solid p-4 animate-slide-up"
+              style={{ animationDelay: `${exIdx * 60}ms` }}
+            >
               <div className="flex items-center justify-between mb-3">
                 <div>
-                  <p className="font-semibold text-gray-900 text-sm">{info?.name ?? ex.exercise_id}</p>
+                  <p className="font-semibold text-text text-sm">{info?.name ?? ex.exercise_id}</p>
                   {ex.override_reason && (
-                    <p className="text-xs text-amber-600">临时替换：{ex.override_reason}</p>
+                    <p className="text-xs text-warning mt-0.5">临时替换：{ex.override_reason}</p>
                   )}
                   {info && (
-                    <p className="text-xs text-gray-400">
+                    <p className="text-xs text-text-muted mt-0.5">
                       {info.metric_type === 'duration' ? '时长型' : '次数型'}
                       {ex.equipment_label ? ` · ${ex.equipment_label}` : ''}
                     </p>
                   )}
                 </div>
-                <span className="text-xs text-gray-400">{exSets.length} 组</span>
+                <Badge tone="primary">{exSets.length} 组</Badge>
               </div>
 
               {/* Recorded sets */}
               <ul className="space-y-1.5 mb-3">
-                {exSets.map((s) => (
-                  <li key={s.id} className="flex items-center justify-between bg-gray-50 rounded-lg px-3 py-2 text-sm">
-                    <span className="text-gray-500 text-xs">第{s.set_index}组{s.set_kind === 'warmup' ? '（热身）' : ''}</span>
-                    <span className="text-gray-800">
+                {exSets.map((s, i) => (
+                  <li
+                    key={s.id}
+                    className="flex items-center justify-between bg-surface-2 rounded-xl px-3 py-2 text-sm animate-slide-up"
+                    style={{ animationDelay: `${i * 40}ms` }}
+                  >
+                    <span className="text-text-muted text-xs">
+                      第{s.set_index}组{s.set_kind === 'warmup' ? '（热身）' : ''}
+                    </span>
+                    <span className="text-text tabular-nums">
                       {s.status === 'skipped' ? (
-                        <span className="text-gray-400">跳过</span>
+                        <span className="text-text-muted">跳过</span>
                       ) : (
                         <>
                           {s.load_kg ? `${s.load_kg}kg` : ''}{' × '}
                           {s.reps !== null ? `${s.reps}次` : s.duration_seconds ? `${s.duration_seconds}秒` : '—'}
-                          {s.rir !== null && <span className="text-gray-400 text-xs"> RIR{s.rir}</span>}
+                          {s.rir !== null && <span className="text-text-muted text-xs"> RIR{s.rir}</span>}
                         </>
                       )}
-                      {s.pending_sync && <span className="ml-1 text-[10px] text-primary-500">待同步</span>}
+                      {s.pending_sync && <Badge tone="primary" className="ml-1.5 !text-[10px] !px-1.5 !py-0">待同步</Badge>}
                     </span>
                   </li>
                 ))}
@@ -182,48 +220,85 @@ export function SessionPage() {
             </div>
           );
         })
+        }
+        </div>
       )}
 
       {/* Add exercise */}
       {showAdd ? (
-        <div className="card p-4">
-          <h3 className="font-semibold text-sm mb-3">添加动作</h3>
-          <div className="grid grid-cols-2 gap-2 max-h-72 overflow-y-auto">
-            {(catalog ?? []).map((ex) => (
+        <div className="card card-solid p-4 animate-scale-in">
+          <div className="flex items-center justify-between mb-3">
+            <h3 className="font-semibold text-sm">添加动作</h3>
+            <button onClick={() => setShowAdd(false)} className="p-1 rounded-lg text-text-muted hover:text-text">
+              <XMarkIcon className="w-4 h-4" />
+            </button>
+          </div>
+          <div className="grid grid-cols-2 gap-2 max-h-72 overflow-y-auto scrollbar-thin">
+            {(catalog ?? []).map((ex, i) => (
               <button
                 key={ex.id}
                 onClick={async () => {
                   await workoutActions.addExercise(userId, session.id, ex.id);
+                  toast.show(`已添加 ${ex.name}`);
                   setShowAdd(false);
                 }}
-                className="p-3 rounded-xl border border-gray-200 text-left hover:border-primary-300"
+                className="p-3 rounded-xl border border-border-default bg-surface text-left hover:border-primary hover:shadow-soft transition-all animate-fade-in"
+                style={{ animationDelay: `${i * 30}ms` }}
               >
-                <p className="text-sm font-medium text-gray-800">{ex.name}</p>
-                <p className="text-xs text-gray-400">{ex.equipment_tags.join(' / ') || '无器械'}</p>
+                <p className="text-sm font-medium text-text">{ex.name}</p>
+                <p className="text-xs text-text-muted mt-0.5">{ex.equipment_tags.join(' / ') || '无器械'}</p>
               </button>
             ))}
             {(catalog ?? []).length === 0 && (
-              <p className="text-xs text-gray-400 col-span-2">动作库为空：请先联网同步快照，或由管理员发布动作内容。</p>
+              <p className="text-xs text-text-muted col-span-2 py-4 text-center">
+                动作库为空：请先联网同步快照，或由管理员发布动作内容。
+              </p>
             )}
           </div>
-          <button onClick={() => setShowAdd(false)} className="mt-3 text-xs text-gray-400">取消</button>
         </div>
       ) : (
         <button
           onClick={() => setShowAdd(true)}
-          className="w-full py-3 rounded-xl border-2 border-dashed border-gray-200 text-sm text-gray-500 flex items-center justify-center gap-2 hover:border-primary-300 hover:text-primary-600"
+          className="w-full py-3.5 rounded-2xl border-2 border-dashed border-border-strong text-sm text-text-muted flex items-center justify-center gap-2 hover:border-primary hover:text-primary transition-colors"
         >
           <PlusIcon className="w-4 h-4" /> 添加动作
         </button>
       )}
 
-      {/* Discomfort report */}
+      {/* Discomfort report — proper sheet instead of window.prompt */}
       <button
-        onClick={() => setDiscomfortPrompt(window.prompt('训练中有不适吗？记录后会作为未解决反馈，下次训练前会提醒你（填写"无"可清除）') ?? discomfortPrompt)}
-        className="w-full text-xs text-gray-400 py-2"
+        onClick={() => setDiscomfortOpen(true)}
+        className="w-full text-xs text-text-muted py-2 hover:text-text-secondary transition-colors"
       >
-        {discomfortPrompt ? `不适反馈：${discomfortPrompt}` : '训练中出现不适？点此记录'}
+        {discomfortSaved ? `不适反馈：${discomfortSaved}（点击修改）` : '训练中出现不适？点此记录'}
       </button>
+
+      <Sheet open={discomfortOpen} onClose={() => setDiscomfortOpen(false)} title="记录不适反馈">
+        <p className="text-sm text-text-secondary leading-relaxed mb-3">
+          记录后会作为未解决反馈，下次训练前会提醒你再次确认。填写「无」可清除记录。
+        </p>
+        <textarea
+          className="input min-h-24"
+          placeholder="例如：左肩推举时有轻微不适"
+          value={discomfortText}
+          onChange={(e) => setDiscomfortText(e.target.value)}
+        />
+        <div className="flex gap-2 mt-4">
+          <Button
+            className="flex-1"
+            onClick={() => {
+              setDiscomfortSaved(discomfortText.trim() || null);
+              setDiscomfortOpen(false);
+              if (discomfortText.trim()) toast.show('已记录不适反馈');
+            }}
+          >
+            保存
+          </Button>
+          <Button variant="secondary" className="flex-1" onClick={() => setDiscomfortOpen(false)}>
+            取消
+          </Button>
+        </div>
+      </Sheet>
 
       {restSeconds !== null && <RestTimer seconds={restSeconds} onDone={() => setRestSeconds(null)} />}
     </div>
@@ -254,30 +329,32 @@ function SetForm({
   return (
     <div className="flex items-end gap-2">
       <div className="flex-1">
-        <label className="text-[10px] text-gray-400">重量kg</label>
+        <label className="text-[10px] font-medium text-text-muted uppercase tracking-wide">重量kg</label>
         <input
           type="number" inputMode="decimal" step="0.5" min="0"
           value={load} onChange={(e) => setLoad(e.target.value)}
           placeholder={lastLoad ?? '—'}
-          className="input w-full py-1.5 text-sm" disabled={skipped}
+          className="input !py-2 text-sm tabular-nums mt-0.5" disabled={skipped}
         />
       </div>
       <div className="flex-1">
-        <label className="text-[10px] text-gray-400">{metricType === 'duration' ? '秒' : '次数'}</label>
+        <label className="text-[10px] font-medium text-text-muted uppercase tracking-wide">
+          {metricType === 'duration' ? '秒' : '次数'}
+        </label>
         <input
           type="number" inputMode="numeric" min="0"
           value={reps} onChange={(e) => setReps(e.target.value)}
           placeholder="—"
-          className="input w-full py-1.5 text-sm" disabled={skipped}
+          className="input !py-2 text-sm tabular-nums mt-0.5" disabled={skipped}
         />
       </div>
       <div className="w-16">
-        <label className="text-[10px] text-gray-400">RIR</label>
+        <label className="text-[10px] font-medium text-text-muted uppercase tracking-wide">RIR</label>
         <input
           type="number" inputMode="numeric" min="0" max="10"
           value={rir} onChange={(e) => setRir(e.target.value)}
           placeholder="可空"
-          className="input w-full py-1.5 text-sm" disabled={skipped}
+          className="input !py-2 text-sm tabular-nums mt-0.5" disabled={skipped}
         />
       </div>
       <button
@@ -299,15 +376,13 @@ function SetForm({
           setReps('');
           setRir('');
         }}
-        className={`px-3 py-2 rounded-lg text-xs font-medium shrink-0 ${
-          skipped ? 'bg-gray-100 text-gray-500' : 'btn-primary'
-        }`}
+        className={`btn shrink-0 !px-3.5 !py-2.5 text-xs ${skipped ? 'btn-secondary' : 'btn-primary'}`}
       >
-        {skipped ? '记为跳过' : <span className="inline-flex items-center gap-1"><FireIcon className="w-3 h-3" />记一组</span>}
+        {skipped ? '记为跳过' : <span className="inline-flex items-center gap-1"><FireIcon className="w-3.5 h-3.5" />记一组</span>}
       </button>
       <button
         onClick={() => setSkipped(!skipped)}
-        className={`px-2 py-2 rounded-lg text-xs shrink-0 ${skipped ? 'text-primary-600 bg-primary-50' : 'text-gray-400'}`}
+        className={`btn btn-ghost !px-2.5 !py-2.5 text-xs shrink-0 ${skipped ? '!text-primary !bg-primary-soft' : ''}`}
         title="本组跳过"
       >
         跳过

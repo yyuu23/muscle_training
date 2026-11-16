@@ -26,7 +26,9 @@ services:
     container_name: muscle_training_api_dev
     environment:
       - PYTHON_ENV=development
-      - DATABASE_URL=postgresql+asyncpg://muscle_training:dev_password@db:5432/muscle_training_dev
+      # Dev runs as the least-privilege API role so RLS is actually
+      # exercised locally (plan §9.3); roles come from bootstrap_roles.sql.
+      - DATABASE_URL=postgresql+asyncpg://app_runtime:app_runtime_dev_password@db:5432/muscle_training_dev
       - STORAGE_BACKEND=filesystem
       - STORAGE_BASE_PATH=/app/storage
     env_file:
@@ -55,7 +57,9 @@ services:
     container_name: muscle_training_worker_dev
     environment:
       - PYTHON_ENV=development
-      - DATABASE_URL=postgresql+asyncpg://muscle_training:dev_password@db:5432/muscle_training_dev
+      # Worker uses its dedicated role; handlers re-scope to the job
+      # owner via app.db.scope (plan §9.3).
+      - DATABASE_URL=postgresql+asyncpg://job_dispatcher:job_dispatcher_dev_password@db:5432/muscle_training_dev
       - STORAGE_BACKEND=filesystem
       - STORAGE_BASE_PATH=/app/storage
     env_file:

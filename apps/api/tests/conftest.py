@@ -14,7 +14,7 @@ os.environ.setdefault("MODEL_PROVIDER", "fake")
 os.environ.setdefault("ENABLE_AGENT", "true")
 os.environ.setdefault(
     "DATABASE_URL",
-    "postgresql+asyncpg://postgres:postgres@localhost:5432/muscle_test",
+    "postgresql+asyncpg://muscle_training:dev_password@localhost:5432/muscle_test",
 )
 
 import pytest  # noqa: E402

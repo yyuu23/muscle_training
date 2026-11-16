@@ -1,28 +1,32 @@
 {
-  "description": "连续两次达到进阶条件的历史：同动作、同器械、同计量、次数达标、RIR 满足",
-  "exercise_slug": "bench-press",
-  "equipment_label": "barbell",
+  "_doc": "同一动作版本、同器械、连续两次完整达标训练（double_progression_v1 的正样本，plan §7.6 九条件全满足）",
+  "user_id": "00000000-aaaa-4bbb-8ccc-000000000001",
+  "exercise_id": "00000000-eeee-4fff-8aaa-0000000000a1",
+  "exercise_content_version": 3,
+  "equipment": "barbell",
   "load_mode": "total_external",
-  "target": {"working_sets": 3, "reps_min": 8, "reps_max": 12, "rir_condition": ">=2"},
+  "available_increment_kg": "2.50",
   "sessions": [
     {
-      "date": "2026-10-26",
-      "working_sets_recorded": 3,
-      "top_load_kg": "40.00",
-      "reps_top": 10,
-      "rir": 3
+      "started_at": "2026-10-20T10:00:00+08:00",
+      "working_sets": [
+        { "set_index": 1, "set_kind": "work", "status": "completed", "load_kg": "60.00", "reps": 8, "rir": 2 },
+        { "set_index": 2, "set_kind": "work", "status": "completed", "load_kg": "60.00", "reps": 8, "rir": 2 },
+        { "set_index": 3, "set_kind": "work", "status": "completed", "load_kg": "60.00", "reps": 8, "rir": 1 }
+      ]
     },
     {
-      "date": "2026-11-02",
-      "working_sets_recorded": 3,
-      "top_load_kg": "40.00",
-      "reps_top": 12,
-      "rir": 2
+      "started_at": "2026-10-27T10:00:00+08:00",
+      "working_sets": [
+        { "set_index": 1, "set_kind": "work", "status": "completed", "load_kg": "60.00", "reps": 10, "rir": 1 },
+        { "set_index": 2, "set_kind": "work", "status": "completed", "load_kg": "60.00", "reps": 10, "rir": 1 },
+        { "set_index": 3, "set_kind": "work", "status": "completed", "load_kg": "60.00", "reps": 10, "rir": 0 }
+      ]
     }
   ],
-  "expected_progression": {
-    "kind": "load_increase",
-    "increment_kg": "2.5",
-    "suggested_load_kg": "42.50"
+  "expected": {
+    "progression_candidate": true,
+    "suggested_load_kg": "62.50",
+    "reason": "次数达上限、RIR 达标、无未解决不适、增量可用"
   }
 }

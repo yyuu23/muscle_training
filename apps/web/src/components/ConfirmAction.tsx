@@ -3,7 +3,7 @@
  */
 
 import { useState, type ReactNode } from 'react';
-import { ExclamationTriangleIcon } from '@heroicons/react/24/outline';
+import { ExclamationTriangleIcon } from '@heroicons/react/24/solid';
 
 interface ConfirmActionProps {
   title: string;
@@ -45,31 +45,33 @@ export function ConfirmAction({
       })}
 
       {open && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
-          <div className="bg-white rounded-2xl max-w-sm w-full p-6 shadow-xl">
-            <div className="flex items-start gap-3 mb-4">
-              <ExclamationTriangleIcon
-                className={`w-6 h-6 shrink-0 ${danger ? 'text-red-500' : 'text-amber-500'}`}
-              />
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-[2px] p-4 animate-fade-in">
+          <div className="bg-surface border border-border-default rounded-3xl max-w-sm w-full p-6 shadow-strong animate-scale-in">
+            <div className="flex items-start gap-3 mb-5">
+              <span
+                className={`inline-flex w-10 h-10 rounded-2xl items-center justify-center shrink-0 ${
+                  danger ? 'bg-danger-soft text-danger' : 'bg-warning-soft text-warning'
+                }`}
+              >
+                <ExclamationTriangleIcon className="w-5 h-5" />
+              </span>
               <div>
-                <h3 className="text-base font-semibold text-gray-900">{title}</h3>
-                <p className="text-sm text-gray-500 mt-1">{description}</p>
+                <h3 className="text-base font-semibold text-text">{title}</h3>
+                <p className="text-sm text-text-secondary mt-1 leading-relaxed">{description}</p>
               </div>
             </div>
-            <div className="flex gap-3 justify-end">
+            <div className="flex gap-2.5 justify-end">
               <button
                 onClick={() => setOpen(false)}
                 disabled={busy}
-                className="px-4 py-2 text-sm rounded-lg border border-gray-200 text-gray-600 hover:bg-gray-50"
+                className="btn btn-secondary btn-sm"
               >
                 {cancelLabel}
               </button>
               <button
                 onClick={handleConfirm}
                 disabled={busy}
-                className={`px-4 py-2 text-sm rounded-lg text-white ${
-                  danger ? 'bg-red-500 hover:bg-red-600' : 'bg-primary-600 hover:bg-primary-700'
-                }`}
+                className={`btn btn-sm text-white ${danger ? 'btn-danger' : 'btn-primary'}`}
               >
                 {busy ? '处理中…' : confirmLabel}
               </button>

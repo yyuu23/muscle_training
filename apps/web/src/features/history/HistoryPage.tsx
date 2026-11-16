@@ -6,13 +6,17 @@
 import { useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useLiveQuery } from 'dexie-react-hooks';
-import { ChevronDownIcon, PencilSquareIcon } from '@heroicons/react/24/outline';
+import { ChevronDownIcon, PencilSquareIcon } from '@heroicons/react/24/solid';
 import { db } from '../../offline/database';
 import type { LocalWorkoutSession } from '../../offline/types';
 import { apiFetch, APIError } from '../../api/client';
 import { useAuth } from '../auth/useAuth';
 import { useSyncStatus } from '../../hooks/useSync';
 import { EmptyState } from '../../components/ErrorState';
+import { Badge } from '../../components/ui/Badge';
+import { Button } from '../../components/ui/Button';
+import { Sheet } from '../../components/ui/Sheet';
+import { SkeletonCards } from '../../components/ui/Skeleton';
 
 interface CorrectionDraft {
   setId: string;
@@ -94,46 +98,49 @@ export function HistoryPage() {
   };
 
   return (
-    <div className="max-w-lg mx-auto px-4 py-6 space-y-5">
-      <h1 className="text-2xl font-bold text-gray-900">训练历史</h1>
+    <div className="page-container py-6 space-y-5">
+      <h1 className="text-2xl font-bold text-text">训练历史</h1>
 
       {!isOnline && (
-        <p className="text-xs text-gray-400">
+        <p className="text-xs text-text-muted">
           离线中：展示本机缓存记录；在线更正需联网后操作。
         </p>
       )}
       {correctionMessage && (
-        <div className="card p-3 text-sm text-gray-700 bg-gray-50">{correctionMessage}</div>
+        <div className="card !py-3 text-sm text-text-secondary !bg-primary-soft animate-scale-in">{correctionMessage}</div>
       )}
 
-      {grouped.length === 0 ? (
+      {sessions === undefined ? (
+        <SkeletonCards count={3} />
+      ) : grouped.length === 0 ? (
         <div className="card p-6">
           <EmptyState
             title="还没有训练记录"
             description="开始训练后会在这里按日期查看"
-            action={<button onClick={() => navigate('/today')} className="btn-primary px-4 py-2 text-sm">去开始训练</button>}
+            action={<Button size="sm" onClick={() => navigate('/today')}>去开始训练</Button>}
           />
         </div>
       ) : (
-        grouped.map(([date, daySessions]) => (
-          <div key={date}>
-            <p className="text-xs text-gray-400 mb-2 px-1">
+        <div className="space-y-5 lg:columns-2 lg:gap-5 lg:space-y-0">
+        {grouped.map(([date, daySessions], gi) => (
+          <div key={date} className="animate-slide-up lg:mb-5 break-inside-avoid" style={{ animationDelay: `${gi * 60}ms` }}>
+            <p className="text-xs text-text-muted mb-2 px-1 font-medium">
               {new Date(date).toLocaleDateString('zh-CN', { month: 'long', day: 'numeric', weekday: 'long' })}
             </p>
-            <div className="space-y-2">
+            <div className="space-y-2.5">
               {(daySessions ?? []).map((session) => {
                 const expanded = expandedId === session.id;
                 return (
-                  <div key={session.id} className="card overflow-hidden">
+                  <div key={session.id} className="card card-solid !p-0 overflow-hidden">
                     <button
                       className="w-full p-4 flex items-center justify-between text-left"
                       onClick={() => setExpandedId(expanded ? null : session.id)}
                     >
                       <div>
-                        <p className="text-sm font-medium text-gray-900">
+                        <p className="text-sm font-medium text-text">
                           {session.plan_day_key ?? '自由训练'}
                         </p>
-                        <p className="text-xs text-gray-400 mt-0.5">
+                        <p className="text-xs text-text-muted mt-0.5">
                           {new Date(session.started_at).toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' })}
                           {session.completed_at &&
                             ` – ${new Date(session.completed_at).toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' })}`}
@@ -141,54 +148,51 @@ export function HistoryPage() {
                         </p>
                       </div>
                       <div className="flex items-center gap-2">
-                        <span
-                          className={`text-xs px-2 py-0.5 rounded-full ${
-                            session.status === 'completed'
-                              ? 'bg-green-50 text-green-700'
-                              : session.status === 'in_progress'
-                                ? 'bg-blue-50 text-blue-600'
-                                : 'bg-gray-100 text-gray-400'
-                          }`}
-                        >
+                        <Badge tone={
+                          session.status === 'completed' ? 'success'
+                            : session.status === 'in_progress' ? 'primary' : 'neutral'
+                        }>
                           {session.status === 'completed' ? '完成' : session.status === 'in_progress' ? '进行中' : '放弃'}
-                        </span>
-                        <ChevronDownIcon className={`w-4 h-4 text-gray-300 transition-transform ${expanded ? 'rotate-180' : ''}`} />
+                        </Badge>
+                        <ChevronDownIcon
+                          className={`w-4 h-4 text-text-muted transition-transform duration-300 ${expanded ? 'rotate-180' : ''}`}
+                        />
                       </div>
                     </button>
 
                     {expanded && (
-                      <div className="border-t border-gray-50 p-4 space-y-3">
+                      <div className="border-t border-border-default p-4 space-y-3 animate-fade-in">
                         {expandedId === session.id && detail && (
                           <>
-                            {detail.exercises.map((ex) => {
+                            {detail.exercises.map((ex, exIdx) => {
                               const exSets = detail.sets.filter((s) => s.session_exercise_id === ex.id);
                               return (
-                                <div key={ex.id}>
-                                  <div className="flex items-center justify-between mb-1">
-                                    <p className="text-xs font-medium text-gray-600">{ex.exercise_id.slice(0, 8)}…</p>
-                                    <span className={`text-[10px] px-1.5 py-0.5 rounded ${
-                                      ex.completion_status === 'completed' ? 'bg-green-50 text-green-600'
-                                        : ex.completion_status === 'skipped' ? 'bg-gray-100 text-gray-400'
-                                        : 'bg-amber-50 text-amber-600'
+                                <div key={ex.id} className="animate-slide-up" style={{ animationDelay: `${exIdx * 50}ms` }}>
+                                  <div className="flex items-center justify-between mb-1.5">
+                                    <p className="text-xs font-medium text-text-secondary">{ex.exercise_id.slice(0, 8)}…</p>
+                                    <span className={`text-[10px] px-1.5 py-0.5 rounded font-medium ${
+                                      ex.completion_status === 'completed' ? 'bg-success-soft text-success'
+                                        : ex.completion_status === 'skipped' ? 'bg-surface-2 text-text-muted'
+                                        : 'bg-warning-soft text-warning'
                                     }`}>
                                       {ex.completion_status === 'completed' ? '完成' : ex.completion_status === 'skipped' ? '跳过' : '部分记录'}
                                     </span>
                                   </div>
                                   <ul className="space-y-1">
                                     {exSets.map((s) => (
-                                      <li key={s.id} className="flex items-center justify-between text-xs bg-gray-50 rounded-lg px-3 py-1.5">
-                                        <span className="text-gray-400">第{s.set_index}组</span>
-                                        <span className="text-gray-700">
+                                      <li key={s.id} className="flex items-center justify-between text-xs bg-surface-2 rounded-xl px-3 py-2">
+                                        <span className="text-text-muted">第{s.set_index}组</span>
+                                        <span className="text-text tabular-nums">
                                           {s.status === 'skipped' ? '跳过' : (
                                             <>
                                               {s.load_kg ? `${s.load_kg}kg` : '—'} × {s.reps ?? '—'}
-                                              {s.rir !== null && <span className="text-gray-400"> RIR{s.rir}</span>}
+                                              {s.rir !== null && <span className="text-text-muted"> RIR{s.rir}</span>}
                                             </>
                                           )}
                                         </span>
                                         {isOnline && session.status === 'completed' && s.status !== 'skipped' && (
                                           <button
-                                            className="text-primary-500"
+                                            className="text-primary hover:scale-110 transition-transform"
                                             title="在线更正"
                                             onClick={() =>
                                               setCorrection({
@@ -206,7 +210,7 @@ export function HistoryPage() {
                                       </li>
                                     ))}
                                     {exSets.length === 0 && (
-                                      <li className="text-xs text-gray-300 px-3">未记录组（区别于跳过）</li>
+                                      <li className="text-xs text-text-muted px-3 py-1">未记录组（区别于跳过）</li>
                                     )}
                                   </ul>
                                 </div>
@@ -222,39 +226,38 @@ export function HistoryPage() {
             </div>
           </div>
         ))
-      )}
-
-      {/* Correction dialog */}
-      {correction && (
-        <div className="fixed inset-0 z-50 bg-black/40 flex items-center justify-center p-4">
-          <div className="bg-white rounded-2xl p-6 max-w-sm w-full space-y-3">
-            <h3 className="font-semibold">更正记录</h3>
-            <p className="text-xs text-gray-400">需要填写更正原因并带版本号提交；旧复盘会标记过期。</p>
-            <input
-              type="number" step="0.5" placeholder="重量 kg"
-              value={correction.load_kg}
-              onChange={(e) => setCorrection({ ...correction, load_kg: e.target.value })}
-              className="input w-full"
-            />
-            <input
-              type="number" placeholder="次数"
-              value={correction.reps ?? ''}
-              onChange={(e) => setCorrection({ ...correction, reps: e.target.value ? parseInt(e.target.value, 10) : null })}
-              className="input w-full"
-            />
-            <input
-              type="number" placeholder="RIR（可空）" min="0" max="10"
-              value={correction.rir ?? ''}
-              onChange={(e) => setCorrection({ ...correction, rir: e.target.value ? parseInt(e.target.value, 10) : null })}
-              className="input w-full"
-            />
-            <div className="flex gap-2 justify-end">
-              <button onClick={() => setCorrection(null)} className="px-4 py-2 text-sm rounded-lg border border-gray-200">取消</button>
-              <button onClick={submitCorrection} className="btn-primary px-4 py-2 text-sm">提交更正</button>
-            </div>
-          </div>
+        }
         </div>
       )}
+
+      {/* Correction sheet */}
+      <Sheet open={!!correction} onClose={() => setCorrection(null)} title="更正记录">
+        <p className="text-xs text-text-muted mb-3">需要填写更正原因并带版本号提交；旧复盘会标记过期。</p>
+        <div className="space-y-2.5">
+          <input
+            type="number" step="0.5" placeholder="重量 kg"
+            value={correction?.load_kg ?? ''}
+            onChange={(e) => correction && setCorrection({ ...correction, load_kg: e.target.value })}
+            className="input tabular-nums"
+          />
+          <input
+            type="number" placeholder="次数"
+            value={correction?.reps ?? ''}
+            onChange={(e) => correction && setCorrection({ ...correction, reps: e.target.value ? parseInt(e.target.value, 10) : null })}
+            className="input tabular-nums"
+          />
+          <input
+            type="number" placeholder="RIR（可空）" min="0" max="10"
+            value={correction?.rir ?? ''}
+            onChange={(e) => correction && setCorrection({ ...correction, rir: e.target.value ? parseInt(e.target.value, 10) : null })}
+            className="input tabular-nums"
+          />
+        </div>
+        <div className="flex gap-2 mt-4">
+          <Button variant="secondary" className="flex-1" onClick={() => setCorrection(null)}>取消</Button>
+          <Button className="flex-1" onClick={submitCorrection}>提交更正</Button>
+        </div>
+      </Sheet>
     </div>
   );
 }

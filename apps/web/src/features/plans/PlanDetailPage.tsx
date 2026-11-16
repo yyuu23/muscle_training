@@ -6,11 +6,13 @@
 import { useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { ArrowLeftIcon, CheckIcon } from '@heroicons/react/24/outline';
+import { ArrowLeftIcon, CheckIcon } from '@heroicons/react/24/solid';
 import { apiFetch, APIError } from '../../api/client';
 import { ErrorState } from '../../components/ErrorState';
 import { PlanDiff, type PlanDiffData, weekdayLabel } from '../../components/PlanDiff';
 import { ConfirmAction } from '../../components/ConfirmAction';
+import { Badge } from '../../components/ui/Badge';
+import { SkeletonCards } from '../../components/ui/Skeleton';
 
 interface PlanDetail {
   plan: {
@@ -82,37 +84,42 @@ export function PlanDetailPage() {
     }
   };
 
-  if (isLoading) return <div className="max-w-2xl mx-auto px-4 py-6 text-sm text-gray-400">加载中…</div>;
-  if (isError || !data) return <div className="max-w-2xl mx-auto px-4 py-6"><ErrorState message="计划不存在或无法加载" onRetry={() => void refetch()} /></div>;
+  if (isLoading) return <div className="page-container py-6"><SkeletonCards count={3} /></div>;
+  if (isError || !data) return <div className="page-container py-6"><ErrorState message="计划不存在或无法加载" onRetry={() => void refetch()} /></div>;
 
   const { plan } = data;
 
   return (
-    <div className="max-w-2xl mx-auto px-4 py-6 space-y-6">
-      <Link to="/plans" className="inline-flex items-center gap-1 text-sm text-gray-500 hover:text-gray-800">
+    <div className="page-container py-6 space-y-5">
+      <Link to="/plans" className="inline-flex items-center gap-1 text-sm text-text-secondary hover:text-text transition-colors">
         <ArrowLeftIcon className="w-4 h-4" /> 返回计划列表
       </Link>
 
-      <div>
-        <h1 className="text-2xl font-bold text-gray-900">{plan.content.title}</h1>
-        <p className="text-sm text-gray-500 mt-1">
+      <div className="animate-slide-up">
+        <div className="flex items-center gap-2.5">
+          <h1 className="text-2xl font-bold text-text">{plan.content.title}</h1>
+          <Badge tone={plan.status === 'active' ? 'success' : plan.status === 'draft' ? 'warning' : 'neutral'}>
+            {plan.status === 'active' ? '生效中' : plan.status === 'draft' ? '草稿' : plan.status}
+          </Badge>
+        </div>
+        <p className="text-sm text-text-secondary mt-1">
           v{plan.sequence_number} · {plan.content.goal}
         </p>
       </div>
 
-      {error && <div className="card p-4 text-sm text-red-700 bg-red-50 border-red-100">{error}</div>}
+      {error && <div className="card p-4 text-sm text-danger !bg-danger-soft !border-danger/30 animate-scale-in">{error}</div>}
 
       {/* Basis versions */}
-      <div className="card p-4 text-xs text-gray-500">
+      <div className="card !p-4 text-xs text-text-muted !bg-surface-2 animate-fade-in">
         依据：档案版本 {plan.basis_profile_version ?? '—'} · planning_revision {plan.basis_planning_revision ?? '—'}
-        {plan.rationale && <p className="mt-1 text-gray-600">{plan.rationale}</p>}
+        {plan.rationale && <p className="mt-1.5 text-text-secondary">{plan.rationale}</p>}
       </div>
 
       {/* Validation issues */}
       {data.validation_issues.length > 0 && (
-        <div className="card p-4 border-amber-100 bg-amber-50">
-          <p className="text-sm font-medium text-amber-800 mb-1">校验问题（{data.validation_issues.length}）</p>
-          <ul className="text-xs text-amber-700 space-y-1">
+        <div className="card p-4 !border-warning/30 !bg-warning-soft animate-scale-in">
+          <p className="text-sm font-medium text-warning mb-1">校验问题（{data.validation_issues.length}）</p>
+          <ul className="text-xs text-warning/90 space-y-1">
             {data.validation_issues.map((issue, i) => (
               <li key={i}>· {issue.message}</li>
             ))}
@@ -121,23 +128,27 @@ export function PlanDetailPage() {
       )}
 
       {/* Days */}
-      <div className="space-y-4">
-        {plan.content.days.map((day) => (
-          <div key={day.day_key} className="card p-5">
+      <div className="space-y-4 lg:grid lg:grid-cols-2 lg:gap-4 lg:space-y-0">
+        {plan.content.days.map((day, di) => (
+          <div key={day.day_key} className="card p-5 animate-slide-up" style={{ animationDelay: `${di * 70}ms` }}>
             <div className="flex items-center justify-between mb-3">
-              <h3 className="font-semibold text-gray-900">
+              <h3 className="font-semibold text-text">
                 {day.day_key} · {weekdayLabel(day.weekday)}
               </h3>
-              <span className="text-xs text-gray-400">约 {day.estimated_minutes} 分钟</span>
+              <span className="text-xs text-text-muted">约 {day.estimated_minutes} 分钟</span>
             </div>
-            <ul className="space-y-3">
-              {day.exercises.map((ex) => (
-                <li key={ex.item_id} className="border border-gray-50 rounded-xl p-3">
+            <ul className="space-y-2.5">
+              {day.exercises.map((ex, i) => (
+                <li
+                  key={ex.item_id}
+                  className="border border-border-default rounded-2xl p-3.5 bg-surface animate-fade-in"
+                  style={{ animationDelay: `${i * 40}ms` }}
+                >
                   <div className="flex items-center justify-between">
-                    <span className="font-medium text-sm text-gray-800">
+                    <span className="font-medium text-sm text-text">
                       {ex.exercise_snapshot?.name ?? ex.exercise_snapshot?.slug ?? ex.item_id}
                     </span>
-                    <span className="text-xs text-gray-500">
+                    <span className="text-xs text-text-secondary tabular-nums">
                       {ex.working_sets} 组 ×{' '}
                       {ex.duration_seconds
                         ? `${ex.duration_seconds} 秒`
@@ -146,7 +157,7 @@ export function PlanDetailPage() {
                     </span>
                   </div>
                   {ex.initial_load_kg === null && (
-                    <p className="text-xs text-amber-600 mt-1">
+                    <p className="text-xs text-warning mt-1.5">
                       初始负荷未知：{ex.load_instruction ?? '首次训练记录实际重量进行校准，不要推算'}
                     </p>
                   )}
@@ -159,8 +170,8 @@ export function PlanDetailPage() {
 
       {/* Diff vs active */}
       {plan.status === 'draft' && (
-        <div className="card p-5">
-          <h3 className="font-semibold text-gray-900 mb-3">与当前计划的差异</h3>
+        <div className="card p-5 animate-slide-up">
+          <h3 className="font-semibold text-text mb-3">与当前计划的差异</h3>
           <PlanDiff diff={data.diff_vs_active} />
         </div>
       )}
@@ -174,7 +185,7 @@ export function PlanDetailPage() {
           onConfirm={adopt}
         >
           {(trigger) => (
-            <button onClick={trigger} className="btn-primary w-full py-3 inline-flex items-center justify-center gap-2">
+            <button onClick={trigger} className="btn btn-primary btn-lg w-full shadow-glow">
               <CheckIcon className="w-5 h-5" /> 采用此计划
             </button>
           )}

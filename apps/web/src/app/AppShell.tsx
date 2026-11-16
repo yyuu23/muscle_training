@@ -1,12 +1,15 @@
 /**
- * App shell: auth guard (cookie session via /auth/me), sync status bar,
- * content area with bottom navigation (plan §8.1).
+ * App shell: ambient background, theme tokens, auth guard (cookie
+ * session via /auth/me), desktop sidebar + mobile bottom navigation
+ * (plan §8.1), route transition.
  */
 
 import { Outlet, useLocation, useNavigate } from 'react-router-dom';
 import { useEffect } from 'react';
 import { Navigation } from '../components/Navigation';
 import { SyncStatusBar } from '../components/SyncStatusBar';
+import { Sidebar } from '../components/Sidebar';
+import { AmbientBackground } from '../components/AmbientBackground';
 import { useAuth } from '../features/auth/useAuth';
 import { registerUpdateManager } from '../pwa/update_manager';
 
@@ -33,12 +36,23 @@ export function AppShell() {
   }
 
   return (
-    <div className="min-h-screen flex flex-col">
-      <SyncStatusBar />
-      <main className="flex-1 pb-16">
-        <Outlet />
-      </main>
-      <Navigation />
+    <div className="min-h-screen lg:pl-64">
+      <AmbientBackground />
+      <Sidebar />
+      <div className="flex flex-col min-h-screen">
+        <div className="lg:hidden">
+          <SyncStatusBar />
+        </div>
+        <main className="flex-1 pb-20 lg:pb-8">
+          {/* Keyed remount → .page-enter transition replays on every route change */}
+          <div key={location.pathname} className="page-enter">
+            <Outlet />
+          </div>
+        </main>
+        <div className="lg:hidden">
+          <Navigation />
+        </div>
+      </div>
     </div>
   );
 }

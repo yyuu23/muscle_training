@@ -1,10 +1,12 @@
 /**
- * Providers: QueryClient + cookie-session AuthProvider.
+ * Providers: QueryClient + cookie-session AuthProvider + Toasts.
  */
 
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { ReactNode } from 'react';
 import { AuthProvider } from '../features/auth/useAuth';
+import { ToastProvider } from '../components/ui/Toast';
+import { useTheme } from '../hooks/useTheme';
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -21,9 +23,12 @@ interface ProvidersProps {
 }
 
 export function Providers({ children }: ProvidersProps) {
+  useTheme(); // apply persisted/system theme before anything renders
   return (
     <QueryClientProvider client={queryClient}>
-      <AuthProvider>{children}</AuthProvider>
+      <AuthProvider>
+        <ToastProvider>{children}</ToastProvider>
+      </AuthProvider>
     </QueryClientProvider>
   );
 }

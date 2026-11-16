@@ -2,15 +2,28 @@
 Integration test fixtures (plan §12.2).
 
 Requires a real PostgreSQL + pgvector (never SQLite):
-    TEST_DATABASE_URL=postgresql+asyncpg://postgres:postgres@localhost:5432/muscle_test
+    TEST_DATABASE_URL=postgresql+asyncpg://muscle_training:dev_password@localhost:5432/muscle_test
+
+The muscle_test database is created automatically on first use (the
+server must be reachable; compose.dev.yml maps localhost:5432 with
+superuser muscle_training / dev_password and the bootstrap roles).
 
 Each test gets its own engine: create_all → run → drop_all. This avoids
 pytest-asyncio loop-scope mismatches (no session-scoped async fixtures)
 and cross-loop connection reuse.
+
+Two schema flavors:
+- ``db`` / ``http``: ORM create_all (fast, per-test) — RLS policies are
+  NOT present, but table grants are given to app_runtime /
+  job_dispatcher so role-based checks still work.
+- ``migrated_db_url``: runs alembic upgrade head on a throwaway
+  database (full migration chain incl. RLS policies + grants).
 """
 
+import asyncio
 import os
 import uuid
+from pathlib import Path
 
 import pytest
 import pytest_asyncio
@@ -22,9 +35,11 @@ from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 os.environ.setdefault("PYTHON_ENV", "test")
 os.environ.setdefault("MODEL_PROVIDER", "fake")
 
+API_ROOT = Path(__file__).resolve().parents[2]  # apps/api
+
 TEST_DATABASE_URL = os.environ.get(
     "TEST_DATABASE_URL",
-    "postgresql+asyncpg://postgres:postgres@localhost:5432/muscle_test",
+    "postgresql+asyncpg://muscle_training:dev_password@localhost:5432/muscle_test",
 )
 
 pytestmark = pytest.mark.integration
@@ -34,10 +49,58 @@ _current_session = None
 _current_engine = None
 
 
+def _url_with_db(url: str, dbname: str) -> str:
+    return url.rsplit("/", 1)[0] + "/" + dbname
+
+
+_test_db_ready = False
+
+
+def _ensure_test_database() -> None:
+    """CREATE DATABASE muscle_test once per process (idempotent)."""
+    global _test_db_ready
+    if _test_db_ready:
+        return
+
+    target = TEST_DATABASE_URL.rsplit("/", 1)[-1]
+    maintenance_url = _url_with_db(TEST_DATABASE_URL, "muscle_training_dev")
+    # Fall back to the default maintenance DB if the dev one is absent
+    # (e.g. a standalone test server).
+    candidates = [maintenance_url, _url_with_db(TEST_DATABASE_URL, "postgres")]
+
+    async def _create() -> None:
+        last_error: Exception | None = None
+        for base in candidates:
+            try:
+                engine = create_async_engine(base, isolation_level="AUTOCOMMIT")
+            except Exception as err:  # noqa: BLE001
+                last_error = err
+                continue
+            try:
+                async with engine.connect() as conn:
+                    exists = (
+                        await conn.execute(
+                            text("SELECT 1 FROM pg_database WHERE datname = :d"), {"d": target}
+                        )
+                    ).scalar()
+                    if not exists:
+                        await conn.execute(text(f'CREATE DATABASE "{target}"'))
+                _test_db_ready = True
+                return
+            except Exception as err:  # noqa: BLE001
+                last_error = err
+            finally:
+                await engine.dispose()
+        raise RuntimeError(f"无法创建测试数据库 {target}（compose.dev.yml 是否已启动？）") from last_error
+
+    asyncio.run(_create())
+
+
 @pytest_asyncio.fixture
 async def db():
     """Per-test engine + schema: create_all → yield session → drop_all."""
     global _current_session, _current_engine
+    _ensure_test_database()
 
     from app.db import models  # noqa: F401 register all models
     from app.db.base import Base
@@ -47,6 +110,15 @@ async def db():
         await conn.execute(text("CREATE EXTENSION IF NOT EXISTS vector"))
         await conn.execute(text("CREATE EXTENSION IF NOT EXISTS pg_trgm"))
         await conn.run_sync(Base.metadata.create_all)
+        # create_all tables are owned by the connecting (super)user and
+        # carry no RLS; still grant DML to the runtime roles so
+        # SET LOCAL ROLE-based tests behave like the migrated schema.
+        await conn.execute(
+            text("GRANT SELECT, INSERT, UPDATE, DELETE ON ALL TABLES IN SCHEMA public TO app_runtime, job_dispatcher")
+        )
+        await conn.execute(
+            text("GRANT USAGE, SELECT ON ALL SEQUENCES IN SCHEMA public TO app_runtime, job_dispatcher")
+        )
 
     session_maker = async_sessionmaker(engine, expire_on_commit=False)
     async with session_maker() as session:
@@ -75,6 +147,67 @@ async def http(db):
     async with AsyncClient(transport=transport, base_url="http://test") as client:
         yield client
     app.dependency_overrides.clear()
+
+
+def _run_alembic(database_url: str, *args: str) -> None:
+    """Run alembic in a subprocess against the given database URL."""
+    import subprocess
+    import sys
+
+    env = dict(os.environ)
+    env["DATABASE_URL"] = database_url
+    env["MIGRATION_DATABASE_URL"] = database_url
+    env["PYTHONPATH"] = str(API_ROOT / "src") + os.pathsep + env.get("PYTHONPATH", "")
+    result = subprocess.run(
+        [sys.executable, "-m", "alembic", "-c", str(API_ROOT / "alembic.ini"), *args],
+        cwd=str(API_ROOT),
+        env=env,
+        capture_output=True,
+        text=True,
+        timeout=300,
+    )
+    if result.returncode != 0:
+        raise RuntimeError(f"alembic {' '.join(args)} 失败:\n{result.stdout}\n{result.stderr}")
+
+
+@pytest.fixture
+def migrated_db_url():
+    """Throwaway database migrated with the full alembic chain
+    (includes RLS policies and role grants). Yields its URL; the
+    database is dropped afterwards. Superuser connection info is taken
+    from TEST_DATABASE_URL."""
+    _ensure_test_database()
+    dbname = f"muscle_test_mig_{uuid.uuid4().hex[:10]}"
+    url = _url_with_db(TEST_DATABASE_URL, dbname)
+
+    maintenance_url = _url_with_db(TEST_DATABASE_URL, "muscle_training_dev")
+
+    async def _create_db() -> None:
+        engine = create_async_engine(maintenance_url, isolation_level="AUTOCOMMIT")
+        try:
+            async with engine.connect() as conn:
+                await conn.execute(text(f'CREATE DATABASE "{dbname}"'))
+        finally:
+            await engine.dispose()
+
+    asyncio.run(_create_db())
+    _run_alembic(url, "upgrade", "head")
+    try:
+        yield url
+    finally:
+        async def _drop_db() -> None:
+            engine = create_async_engine(maintenance_url, isolation_level="AUTOCOMMIT")
+            try:
+                async with engine.connect() as conn:
+                    await conn.execute(
+                        text("SELECT pg_terminate_backend(pid) FROM pg_stat_activity WHERE datname = :d AND pid <> pg_backend_pid()"),
+                        {"d": dbname},
+                    )
+                    await conn.execute(text(f'DROP DATABASE IF EXISTS "{dbname}"'))
+            finally:
+                await engine.dispose()
+
+        asyncio.run(_drop_db())
 
 
 async def create_invite() -> str:

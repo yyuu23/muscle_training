@@ -5,9 +5,14 @@
 
 import { useRef, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { DocumentArrowUpIcon } from '@heroicons/react/24/outline';
+import { DocumentArrowUpIcon } from '@heroicons/react/24/solid';
 import { apiFetch, APIError } from '../../api/client';
 import { EmptyState, ErrorState } from '../../components/ErrorState';
+import { Badge } from '../../components/ui/Badge';
+import type { BadgeTone } from '../../components/ui/Badge';
+import { Button } from '../../components/ui/Button';
+import { Sheet } from '../../components/ui/Sheet';
+import { SkeletonCards } from '../../components/ui/Skeleton';
 
 interface KnowledgeSource {
   id: string;
@@ -28,10 +33,10 @@ const STATUS_LABELS: Record<string, string> = {
   processing: '处理中', awaiting_review: '待审核', indexing: '索引中',
   ready: '可用', failed: '失败', withdrawn: '已撤回',
 };
-const STATUS_STYLES: Record<string, string> = {
-  processing: 'bg-blue-50 text-blue-600', awaiting_review: 'bg-amber-50 text-amber-700',
-  indexing: 'bg-blue-50 text-blue-600', ready: 'bg-green-50 text-green-700',
-  failed: 'bg-red-50 text-red-700', withdrawn: 'bg-gray-100 text-gray-400',
+const STATUS_TONES: Record<string, BadgeTone> = {
+  processing: 'primary', awaiting_review: 'warning',
+  indexing: 'primary', ready: 'success',
+  failed: 'danger', withdrawn: 'neutral',
 };
 
 function formatMs(ms: number | null): string {
@@ -46,6 +51,9 @@ export function KnowledgePage() {
   const [uploading, setUploading] = useState<string | null>(null);
   const [uploadError, setUploadError] = useState<string | null>(null);
   const [detailId, setDetailId] = useState<string | null>(null);
+  // pending import: asset verified, waiting for the user to name it
+  const [pendingImport, setPendingImport] = useState<{ assetId: string; defaultTitle: string } | null>(null);
+  const [importTitle, setImportTitle] = useState('');
 
   const sourcesQuery = useQuery({
     queryKey: ['knowledge', 'sources'],
@@ -91,29 +99,38 @@ export function KnowledgePage() {
         throw new Error(completed.detail ?? '上传校验失败');
       }
 
-      const title = window.prompt('资料标题：', file.name.replace(/\.[^.]+$/, ''));
-      if (!title) {
-        setUploading(null);
-        return;
-      }
-
-      await apiFetch('/knowledge/imports', {
-        method: 'POST',
-        body: { asset_id: created.asset_id, title },
-      });
-      setUploading('已提交导入任务，处理中…');
-      await queryClient.invalidateQueries({ queryKey: ['knowledge'] });
-      setTimeout(() => setUploading(null), 3000);
+      // Ask for the title in a proper sheet instead of window.prompt
+      setUploading(null);
+      setImportTitle(file.name.replace(/\.[^.]+$/, ''));
+      setPendingImport({ assetId: created.asset_id, defaultTitle: file.name.replace(/\.[^.]+$/, '') });
     } catch (err) {
       setUploadError(err instanceof APIError ? err.message : err instanceof Error ? err.message : '上传失败');
       setUploading(null);
     }
   };
 
+  const confirmImport = async () => {
+    if (!pendingImport) return;
+    const title = importTitle.trim() || pendingImport.defaultTitle;
+    try {
+      await apiFetch('/knowledge/imports', {
+        method: 'POST',
+        body: { asset_id: pendingImport.assetId, title },
+      });
+      setUploading('已提交导入任务，处理中…');
+      await queryClient.invalidateQueries({ queryKey: ['knowledge'] });
+      setTimeout(() => setUploading(null), 3000);
+    } catch (err) {
+      setUploadError(err instanceof Error ? err.message : '导入失败');
+    } finally {
+      setPendingImport(null);
+    }
+  };
+
   return (
-    <div className="max-w-2xl mx-auto px-4 py-6 space-y-6">
+    <div className="page-container py-6 space-y-5">
       <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold text-gray-900">知识库</h1>
+        <h1 className="text-2xl font-bold text-text">知识库</h1>
         <>
           <input
             ref={fileInput}
@@ -126,42 +143,42 @@ export function KnowledgePage() {
               e.target.value = '';
             }}
           />
-          <button
-            onClick={() => fileInput.current?.click()}
-            disabled={!!uploading}
-            className="btn-primary px-4 py-2 text-sm inline-flex items-center gap-2"
-          >
+          <Button size="sm" onClick={() => fileInput.current?.click()} disabled={!!uploading}>
             <DocumentArrowUpIcon className="w-4 h-4" />
             上传资料
-          </button>
+          </Button>
         </>
       </div>
 
-      <p className="text-xs text-gray-400">
+      <p className="text-xs text-text-muted leading-relaxed">
         支持 TXT/Markdown/字幕(SRT/VTT)/音频/MP4。原视频与音频最多保留 7 天；转写与字幕长期保存。
         审核通过后才会用于教练回答。
       </p>
 
-      {uploading && <div className="card p-3 text-sm text-gray-600">{uploading}</div>}
-      {uploadError && <div className="card p-3 text-sm text-red-700 bg-red-50 border-red-100">{uploadError}</div>}
+      {uploading && <div className="card !py-3 text-sm text-text-secondary animate-fade-in">{uploading}</div>}
+      {uploadError && <div className="card !py-3 text-sm text-danger !bg-danger-soft !border-danger/30 animate-scale-in">{uploadError}</div>}
 
       {/* Sources */}
       {sourcesQuery.isLoading ? (
-        <div className="card p-6 text-sm text-gray-400">加载中…</div>
+        <SkeletonCards count={3} />
       ) : sourcesQuery.isError ? (
         <ErrorState message="无法加载知识库" onRetry={() => void sourcesQuery.refetch()} />
       ) : sourcesQuery.data?.items.length ? (
-        <ul className="space-y-2">
-          {sourcesQuery.data.items.map((source) => (
-            <li key={source.id} className="card p-4">
+        <ul className="space-y-2.5">
+          {sourcesQuery.data.items.map((source, i) => (
+            <li
+              key={source.id}
+              className="card p-4 animate-slide-up"
+              style={{ animationDelay: `${Math.min(i, 8) * 50}ms` }}
+            >
               <button className="w-full text-left" onClick={() => setDetailId(detailId === source.id ? null : source.id)}>
                 <div className="flex items-center justify-between gap-2">
-                  <span className="font-medium text-sm text-gray-900 truncate">{source.title}</span>
-                  <span className={`text-xs px-2 py-0.5 rounded-full shrink-0 ${STATUS_STYLES[source.status]}`}>
+                  <span className="font-medium text-sm text-text truncate">{source.title}</span>
+                  <Badge tone={STATUS_TONES[source.status] ?? 'neutral'}>
                     {STATUS_LABELS[source.status]}
-                  </span>
+                  </Badge>
                 </div>
-                <p className="text-xs text-gray-400 mt-1">
+                <p className="text-xs text-text-muted mt-1">
                   {source.source_type === 'video' ? '视频' : source.source_type === 'audio' ? '音频'
                     : source.source_type === 'subtitle' ? '字幕' : '文档'}
                   {' · '}
@@ -172,33 +189,33 @@ export function KnowledgePage() {
               </button>
 
               {detailId === source.id && (
-                <div className="mt-3 border-t border-gray-50 pt-3 space-y-3">
+                <div className="mt-3 border-t border-border-default pt-3 space-y-3 animate-fade-in">
                   {detailQuery.data ? (
                     <>
-                      <div className="text-xs text-gray-500">
+                      <div className="text-xs text-text-secondary">
                         修订 {detailQuery.data.revisions.length} 个；片段 {detailQuery.data.chunks.length} 条
                       </div>
-                      <div className="max-h-64 overflow-y-auto space-y-2">
+                      <div className="max-h-64 overflow-y-auto space-y-2 scrollbar-thin">
                         {detailQuery.data.chunks.slice(0, 30).map((chunk) => (
-                          <div key={chunk.id} className="bg-gray-50 rounded-lg p-2 text-xs">
+                          <div key={chunk.id} className="bg-surface-2 rounded-xl p-2.5 text-xs">
                             {chunk.start_ms !== null && (
-                              <span className="text-primary-600 font-mono mr-2">{formatMs(chunk.start_ms)}</span>
+                              <span className="text-primary font-mono mr-2">{formatMs(chunk.start_ms)}</span>
                             )}
-                            <span className="text-gray-600 line-clamp-3">{chunk.original_text}</span>
+                            <span className="text-text-secondary line-clamp-3">{chunk.original_text}</span>
                           </div>
                         ))}
                       </div>
                       {source.status === 'ready' && (
                         <button
                           onClick={() => withdraw.mutate(source.id)}
-                          className="text-xs text-red-600 border border-red-100 rounded-lg px-3 py-1.5"
+                          className="btn btn-danger btn-sm text-xs"
                         >
                           撤回（不再用于新回答）
                         </button>
                       )}
                     </>
                   ) : (
-                    <p className="text-xs text-gray-400">加载详情…</p>
+                    <p className="text-xs text-text-muted">加载详情…</p>
                   )}
                 </div>
               )}
@@ -213,6 +230,22 @@ export function KnowledgePage() {
           />
         </div>
       )}
+
+      {/* Import naming sheet */}
+      <Sheet open={!!pendingImport} onClose={() => setPendingImport(null)} title="资料标题">
+        <p className="text-sm text-text-secondary mb-3">为这份资料取一个便于检索的标题。</p>
+        <input
+          className="input"
+          value={importTitle}
+          onChange={(e) => setImportTitle(e.target.value)}
+          placeholder={pendingImport?.defaultTitle}
+          autoFocus
+        />
+        <div className="flex gap-2 mt-4">
+          <Button variant="secondary" className="flex-1" onClick={() => setPendingImport(null)}>取消</Button>
+          <Button className="flex-1" onClick={confirmImport}>开始导入</Button>
+        </div>
+      </Sheet>
     </div>
   );
 }

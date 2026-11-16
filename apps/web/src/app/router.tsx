@@ -21,8 +21,11 @@ const SettingsPage = lazy(() => import('../features/settings/SettingsPage').then
 const AdminCatalogPage = lazy(() => import('../features/admin/AdminCatalogPage').then((m) => ({ default: m.AdminCatalogPage })));
 
 const PageLoader = () => (
-  <div className="min-h-screen flex items-center justify-center">
-    <div className="text-gray-600">加载中...</div>
+  <div className="min-h-screen flex items-center justify-center bg-bg">
+    <div className="flex flex-col items-center gap-3 animate-fade-in">
+      <span className="w-8 h-8 rounded-full border-[3px] border-primary border-t-transparent animate-spin" />
+      <span className="text-sm text-text-muted">加载中…</span>
+    </div>
   </div>
 );
 

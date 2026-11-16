@@ -1,5 +1,5 @@
-# 统一检查入口：后端 lint+单测，前端 lint+typecheck+单测
-# 用法：.\scripts\check.ps1 [-SkipBackend] [-SkipFrontend]
+# Unified checks: backend lint+unit tests, frontend lint+typecheck+unit tests
+# Usage: .\scripts\check.ps1 [-SkipBackend] [-SkipFrontend]
 
 param(
     [switch]$SkipBackend,
@@ -17,7 +17,7 @@ if (-not $SkipBackend) {
     if ($LASTEXITCODE -ne 0) { $failed = $true }
     Pop-Location
 
-    Write-Host "==> 后端单元测试..."
+    Write-Host "==> Backend unit tests..."
     Push-Location (Join-Path $root "apps/api")
     uv run pytest tests/unit -m "not integration and not live" -q
     if ($LASTEXITCODE -ne 0) { $failed = $true }
@@ -25,7 +25,7 @@ if (-not $SkipBackend) {
 }
 
 if (-not $SkipFrontend) {
-    Write-Host "==> 前端 lint + typecheck + 单元测试..."
+    Write-Host "==> Frontend lint + typecheck + unit tests..."
     Push-Location $root
     pnpm --filter @fitness/web lint
     if ($LASTEXITCODE -ne 0) { $failed = $true }
@@ -39,7 +39,7 @@ if (-not $SkipFrontend) {
 }
 
 if ($failed) {
-    Write-Host "[FAIL] 存在未通过的检查" -ForegroundColor Red
+    Write-Host "[FAIL] Some checks did not pass" -ForegroundColor Red
     exit 1
 }
-Write-Host "[OK] 全部检查通过"
+Write-Host "[OK] All checks passed"

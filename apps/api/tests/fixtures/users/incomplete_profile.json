@@ -1,19 +1,29 @@
 {
-  "username": "incomplete_profile",
-  "display_name": "档案不完整用户",
+  "_doc": "不完整档案（plan §12.5：建档缺失——目标/经验/器械缺项时生成计划必须返回 INSUFFICIENT_PROFILE 而非编造）",
+  "username": "fixture_incomplete",
   "profile": {
     "goal": null,
     "height_cm": null,
     "training_experience_months": null,
     "sessions_per_week": null,
     "minutes_per_session": null,
-    "available_weekdays": null,
-    "equipment": null,
-    "available_load_increments": null
+    "available_weekdays": [],
+    "equipment": [],
+    "available_load_increments": []
   },
-  "expected_behavior": {
-    "missing_fields": ["goal", "training_experience_months", "sessions_per_week", "minutes_per_session", "equipment"],
-    "plan_generation": "返回 INSUFFICIENT_PROFILE 并列出缺失字段",
-    "recording": "训练记录、体重、饮食功能不受影响"
+  "completeness": {
+    "missing_fields": [
+      "goal",
+      "training_experience_months",
+      "sessions_per_week",
+      "minutes_per_session",
+      "equipment"
+    ],
+    "complete": false
+  },
+  "scenario": {
+    "plan_generate_must_return": "INSUFFICIENT_PROFILE",
+    "frontend_must_show": "还缺少：训练目标、训练经验、每周次数、单次时长、可用器械",
+    "recording_features_unaffected": true
   }
 }
