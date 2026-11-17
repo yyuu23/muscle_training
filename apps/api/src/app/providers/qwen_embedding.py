@@ -25,12 +25,17 @@ class QwenEmbeddingProvider:
         self.expected_dimensions = settings.embedding_dimension
 
     async def embed(self, request: EmbeddingRequest) -> EmbeddingResult:
-        if not self.api_key:
-            raise ProviderError("MODEL_UNAVAILABLE", "未配置 DASHSCOPE_API_KEY，向量功能不可用", retryable=False)
+        from app.providers.qwen_chat import _require_usable_key
+
+        _require_usable_key(self.api_key, "EMBEDDING_API_KEY（或 DASHSCOPE_API_KEY）")
 
         # Batch with a conservative ceiling
         texts = request.texts[:25]
 
+        # Standard OpenAI-compatible payload only: {model, input}. The
+        # DashScope-specific "dimensions"/"text_type" extras are rejected
+        # by other OpenAI-compatible providers (e.g. Tencent TokenHub);
+        # dimension conformance is verified on the response below.
         try:
             async with httpx.AsyncClient(timeout=60.0) as client:
                 response = await client.post(
@@ -39,8 +44,6 @@ class QwenEmbeddingProvider:
                     json={
                         "model": self.model,
                         "input": texts,
-                        "dimensions": self.expected_dimensions,
-                        "text_type": "document" if request.purpose == "indexing" else "query",
                     },
                 )
         except httpx.TimeoutException as exc:

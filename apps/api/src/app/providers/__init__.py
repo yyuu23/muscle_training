@@ -28,7 +28,10 @@ def get_embedding_provider():
         return FakeEmbeddingProvider(dimensions=settings.embedding_dimension)
     from app.providers.qwen_embedding import QwenEmbeddingProvider
 
-    return QwenEmbeddingProvider()
+    return QwenEmbeddingProvider(
+        api_key=settings.embedding_api_key,
+        base_url=settings.embedding_base_url,
+    )
 
 
 @lru_cache

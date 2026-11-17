@@ -46,7 +46,7 @@ async def test_upgrade_head_builds_full_schema(migrated_db_url):
             assert EXPECTED_TABLES <= tables, f"缺少表: {EXPECTED_TABLES - tables}"
 
             head = (await conn.execute(text("SELECT version_num FROM alembic_version"))).scalar()
-            assert head == "b2r3l4s5c7d8", f"alembic_version 应为最新迁移，实际 {head}"
+            assert head == "c3d4e5f6a7b8", f"alembic_version 应为最新迁移，实际 {head}"
 
             # RLS enabled + forced on every protected table
             # (pg_tables dropped forcerowsecurity in PG17; use pg_class)
@@ -84,8 +84,8 @@ async def test_upgrade_head_builds_full_schema(migrated_db_url):
 
 
 async def test_rls_layer_reversible(migrated_db_url):
-    """downgrade -1 removes policies/RLS; upgrade restores them."""
-    _run_alembic(migrated_db_url, "downgrade", "-1")
+    """Downgrading below the RLS revision removes policies/RLS; upgrade restores them."""
+    _run_alembic(migrated_db_url, "downgrade", "a1c2d3e4f5b6")
     engine = create_async_engine(migrated_db_url)
     try:
         async with engine.connect() as conn:

@@ -9,6 +9,7 @@ Hybrid retrieval (plan §7.9)
 Query and document vectors must share model + dimensions.
 """
 
+import logging
 from dataclasses import dataclass
 from uuid import UUID
 
@@ -20,6 +21,8 @@ from app.db.models.knowledge import KnowledgeChunk, KnowledgeSource, SourceRevis
 from app.providers import get_embedding_provider
 from app.rag.fusion import dedupe_chunks, jaccard_similarity, rrf_fuse
 from app.rag.normalization import normalize_query
+
+logger = logging.getLogger(__name__)
 
 KEYWORD_RECALL = 20
 VECTOR_RECALL = 20
@@ -116,16 +119,26 @@ async def vector_recall(
     *,
     limit: int = VECTOR_RECALL,
 ) -> list[KnowledgeChunk]:
-    """Exact cosine vector search over visible ready chunks."""
-    from app.providers.interfaces import EmbeddingRequest
+    """Exact cosine vector search over visible ready chunks.
 
-    provider = get_embedding_provider()
-    result = await provider.embed(EmbeddingRequest(texts=[query], purpose="query"))
-    embedding = result.vectors[0]
+    Short-circuits before any API call when the user has no visible
+    ready sources (empty knowledge base must not cost an embedding),
+    and degrades to keyword-only retrieval when the embedding endpoint
+    is unconfigured or fails — chat keeps working (plan §4.6)."""
+    from app.providers.errors import ProviderError
+    from app.providers.interfaces import EmbeddingRequest
 
     revision_ids = await _visible_revision_ids(db, user_id)
     if not revision_ids:
         return []
+
+    try:
+        provider = get_embedding_provider()
+        result = await provider.embed(EmbeddingRequest(texts=[query], purpose="query"))
+    except ProviderError as exc:
+        logger.warning("vector recall skipped (%s); keyword-only retrieval in effect", exc.code)
+        return []
+    embedding = result.vectors[0]
 
     vector_literal = "[" + ",".join(f"{x:.6f}" for x in embedding) + "]"
     sql = sql_text(

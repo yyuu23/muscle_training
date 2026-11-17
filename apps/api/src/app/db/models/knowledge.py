@@ -115,7 +115,9 @@ class KnowledgeChunk(Base):
 
     search_vector: Mapped[list | None] = mapped_column(TSVECTOR)
 
-    embedding: Mapped[list | None] = mapped_column(Vector(1024))
+    # 2560 = kinfra-text-embedding-4b native output (TokenHub); match
+    # migration xxxx_widen_embedding_to_2560 and EMBEDDING_DIMENSIONS.
+    embedding: Mapped[list | None] = mapped_column(Vector(2560))
     embedding_model: Mapped[str | None] = mapped_column(String(100))
     embedding_dimensions: Mapped[int | None] = mapped_column(Integer)
 

@@ -76,6 +76,12 @@ class Settings(BaseSettings):
     dashscope_api_key: str | None = None
     dashscope_base_url: str = "https://dashscope.aliyuncs.com/compatible-mode/v1"
 
+    # Embeddings may live on a different OpenAI-compatible endpoint than
+    # chat (e.g. chat via a relay without embedding models, embeddings on
+    # official DashScope). Null falls back to the shared values above.
+    embedding_base_url: str | None = None
+    embedding_api_key: str | None = None
+
     # Model Configuration
     # DEFAULT_*_MODEL is canonical; the shorter CHAT_MODEL / EMBEDDING_MODEL /
     # ASR_MODEL names come from plan.md §11.1 and stay accepted.

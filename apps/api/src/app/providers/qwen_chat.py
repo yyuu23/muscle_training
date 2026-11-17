@@ -30,8 +30,7 @@ class QwenChatProvider:
         self.model = model or settings.default_chat_model
 
     async def generate(self, request: ChatRequest) -> ChatResult:
-        if not self.api_key:
-            raise ProviderError("MODEL_UNAVAILABLE", "未配置 DASHSCOPE_API_KEY，模型功能不可用", retryable=False)
+        _require_usable_key(self.api_key, "DASHSCOPE_API_KEY")
 
         payload: dict = {
             "model": self.model,
@@ -86,6 +85,19 @@ class QwenChatProvider:
                 "model": self.model,
                 "id": data.get("id"),
             },
+        )
+
+
+def _require_usable_key(api_key: str, name: str) -> None:
+    """Reject empty keys AND leftover placeholders (non-ASCII would crash
+    httpx header encoding with an opaque UnicodeEncodeError)."""
+    if not api_key:
+        raise ProviderError("MODEL_UNAVAILABLE", f"未配置 {name}，模型功能不可用", retryable=False)
+    if not api_key.isascii():
+        raise ProviderError(
+            "MODEL_UNAVAILABLE",
+            f"{name} 仍是占位符（含中文），请换成真实的 sk- 开头密钥",
+            retryable=False,
         )
 
 

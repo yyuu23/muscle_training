@@ -14,12 +14,21 @@ from app.db.models.catalog import Exercise, TrainingTemplate
 
 def _model_configured() -> dict[str, bool]:
     settings = get_settings()
-    has_key = bool(settings.dashscope_api_key)
+    has_chat_key = bool(settings.dashscope_api_key)
+    has_embedding_key = bool(settings.embedding_api_key or settings.dashscope_api_key)
+    # Transcription stays DashScope-native (paraformer); a chat relay
+    # without the official key cannot serve it.
     return {
-        "chat_model_configured": has_key,
-        "embedding_model_configured": has_key,
-        "transcription_configured": has_key,
+        "chat_model_configured": has_chat_key,
+        "embedding_model_configured": has_embedding_key,
+        "transcription_configured": has_dashscope_native(settings),
     }
+
+
+def has_dashscope_native(settings) -> bool:
+    """Whether the official DashScope endpoint is reachable for native
+    features (paraformer ASR)."""
+    return bool(settings.dashscope_api_key) and "dashscope.aliyuncs.com" in settings.dashscope_base_url
 
 
 def _storage_configured() -> bool:
