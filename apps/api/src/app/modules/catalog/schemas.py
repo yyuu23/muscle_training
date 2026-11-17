@@ -16,17 +16,18 @@ class ExerciseResponse(BaseModel):
     slug: str
     content_version: int
     name: str
-    aliases: list
+    aliases: list[str]
     movement_pattern: str | None
-    equipment_tags: list
+    equipment_tags: list[str]
     metric_type: str
     load_mode: str
-    instructions: list
-    common_errors: list
-    approved_alternatives: list
-    evidence_refs: list
+    instructions: list[str]
+    common_errors: list[str]
+    approved_alternatives: list[str]
+    evidence_refs: list[str]
     review_status: str
     fixture: bool
+    reviewed_at: datetime | None
     created_at: datetime
 
 
@@ -39,15 +40,16 @@ class TemplateResponse(BaseModel):
     name: str
     intended_population: str | None
     sessions_per_week: int
-    required_intake_fields: list
+    required_intake_fields: list[str]
     eligibility: dict
     session_slots: list
     progression_policy: str
     time_estimation_parameters: dict
     approved_short_session_variants: list
-    evidence_refs: list
+    evidence_refs: list[str]
     review_status: str
     fixture: bool
+    reviewed_at: datetime | None
     created_at: datetime
 
 
@@ -88,3 +90,12 @@ class ContentReviewResponse(BaseModel):
     content_version: int
     review_status: str
     reviewed_at: datetime | None
+
+
+class ContentStatsResponse(BaseModel):
+    exercises_total: int
+    exercises_approved: int
+    templates_total: int
+    templates_approved: int
+    content_ready: bool
+    note: str | None = None

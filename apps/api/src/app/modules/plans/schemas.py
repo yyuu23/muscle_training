@@ -27,7 +27,7 @@ class PlanExerciseItem(BaseModel):
     item_id: str = Field(..., min_length=1, max_length=100)
     exercise_id: uuid.UUID
     exercise_content_version: int = Field(..., ge=1)
-    exercise_snapshot: dict = Field(default_factory=dict)
+    exercise_snapshot: dict[str, str] = Field(default_factory=dict)
 
     working_sets: int = Field(..., ge=1, le=20)
     reps_min: int | None = Field(None, ge=0, le=100)
@@ -97,6 +97,13 @@ class PlanContent(BaseModel):
         return self
 
 
+class PlanContentOut(PlanContent):
+    """Read view of plan content: tolerate extra keys written by older
+    writers (strict forbid belongs to creation-time validation)."""
+
+    model_config = ConfigDict(extra="ignore")
+
+
 class PlanVersionResponse(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
@@ -104,7 +111,7 @@ class PlanVersionResponse(BaseModel):
     user_id: uuid.UUID
     sequence_number: int
     status: str
-    content: dict
+    content: PlanContentOut
     basis_profile_version: int | None
     basis_planning_revision: int | None
     basis_active_plan_id: uuid.UUID | None
@@ -129,6 +136,13 @@ class PlanActivateRequest(BaseModel):
     """Explicit user adoption; the model can never activate directly."""
 
     expected_basis_planning_revision: int = Field(..., ge=1)
+
+
+class PlanGenerateAcceptedResponse(BaseModel):
+    """202 body for POST /plans/generate."""
+
+    job_id: uuid.UUID
+    status: str
 
 
 class PlanActivateResponse(BaseModel):

@@ -7,7 +7,7 @@ import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { SparklesIcon, ClockIcon, ChevronRightIcon } from '@heroicons/react/24/solid';
-import { apiFetch, APIError } from '../../api/client';
+import { APIError, apiGet, apiPost } from '../../api/client';
 import { EmptyState, ErrorState } from '../../components/ErrorState';
 import { useJobPolling } from './useJobPolling';
 import { Badge } from '../../components/ui/Badge';
@@ -15,15 +15,6 @@ import type { BadgeTone } from '../../components/ui/Badge';
 import { Button } from '../../components/ui/Button';
 import { SkeletonCards } from '../../components/ui/Skeleton';
 import { useTilt } from '../../hooks/useTilt';
-
-interface PlanSummary {
-  id: string;
-  sequence_number: number;
-  status: 'draft' | 'active' | 'superseded' | 'archived';
-  content: { title?: string; goal?: string; days?: { day_key: string }[] };
-  created_at: string;
-  activated_at: string | null;
-}
 
 const STATUS_LABELS: Record<string, string> = {
   draft: '草稿', active: '生效中', superseded: '已替代', archived: '已归档',
@@ -42,12 +33,12 @@ export function PlansPage() {
 
   const activeQuery = useQuery({
     queryKey: ['plans', 'active'],
-    queryFn: () => apiFetch<{ plan: PlanSummary | null }>('/plans/active'),
+    queryFn: () => apiGet('/api/v1/plans/active'),
   });
 
   const listQuery = useQuery({
     queryKey: ['plans', 'list'],
-    queryFn: () => apiFetch<{ items: PlanSummary[] }>('/plans'),
+    queryFn: () => apiGet('/api/v1/plans'),
   });
 
   const job = useJobPolling(jobId);
@@ -60,7 +51,7 @@ export function PlansPage() {
   const generate = async () => {
     setGenerateError(null);
     try {
-      const result = await apiFetch<{ job_id: string }>('/plans/generate', { method: 'POST' });
+      const result = await apiPost('/api/v1/plans/generate');
       setJobId(result.job_id);
     } catch (err) {
       if (err instanceof APIError) {

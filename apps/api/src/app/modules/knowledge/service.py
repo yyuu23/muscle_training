@@ -86,6 +86,31 @@ class KnowledgeService:
             "max_size_bytes": grant.max_size_bytes,
         }
 
+    async def store_upload_bytes(self, user_id: UUID, object_key: str, data: bytes) -> int:
+        """Development passthrough: store raw upload bytes for a pending
+        asset the user created via create_upload (filesystem storage's
+        grant points back at the API; OSS uploads go straight to the
+        presigned URL and never touch this path)."""
+        asset = (
+            await self.db.execute(
+                select(Asset).where(Asset.object_key == object_key)
+            )
+        ).scalar_one_or_none()
+        if asset is None or asset.owner_user_id != user_id:
+            raise ApiError(ErrorCode.NOT_FOUND, "资产不存在")
+        if asset.status != "pending":
+            raise ApiError(ErrorCode.VALIDATION_ERROR, "资产不处于待上传状态")
+
+        if len(data) > asset.byte_size:
+            raise ApiError(
+                ErrorCode.VALIDATION_ERROR,
+                f"上传内容 {len(data)} 字节超过声明的 {asset.byte_size} 字节",
+            )
+
+        storage = get_storage()
+        await storage.put(object_key, data, content_type=asset.mime_type)
+        return len(data)
+
     async def complete_upload(
         self, user_id: UUID, asset_id: UUID, sha256: str
     ) -> tuple[bool, int | None, str | None]:

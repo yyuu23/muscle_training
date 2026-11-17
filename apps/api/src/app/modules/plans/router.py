@@ -17,6 +17,7 @@ from app.modules.plans.schemas import (
     PlanActivateResponse,
     PlanActiveResponse,
     PlanDetailResponse,
+    PlanGenerateAcceptedResponse,
     PlanListResponse,
     PlanVersionResponse,
 )
@@ -54,7 +55,7 @@ async def list_plans(
     )
 
 
-@router.post("/generate", status_code=status.HTTP_202_ACCEPTED)
+@router.post("/generate", status_code=status.HTTP_202_ACCEPTED, response_model=PlanGenerateAcceptedResponse)
 async def generate_plan(
     user: CurrentUser,
     response: Response,

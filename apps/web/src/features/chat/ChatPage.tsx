@@ -7,32 +7,20 @@
 import { useEffect, useRef, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { PaperAirplaneIcon, ChatBubbleLeftRightIcon, ShieldCheckIcon } from '@heroicons/react/24/solid';
-import { apiFetch } from '../../api/client';
+import { apiGet, apiPost } from '../../api/client';
+import type { components } from '../../api/generated/schema';
 import { CitationLink } from '../../components/CitationLink';
 import { useAuth } from '../auth/useAuth';
 import { EmptyState } from '../../components/ErrorState';
 
-interface CoachResponse {
-  status: 'answered' | 'needs_input' | 'draft_ready' | 'unable_to_answer';
-  answer_markdown: string;
-  citations: { chunk_id: string; quote?: string | null }[];
-  missing_fields: string[];
-  memory_candidate_ids: string[];
-  conversation_id: string | null;
-  data_cutoff_at: string | null;
-}
+type Schemas = components['schemas'];
+type CoachResponse = Schemas['CoachResponseOut'];
 
 interface ChatMessageLocal {
   role: 'user' | 'assistant';
   content: string;
   citations?: CoachResponse['citations'];
   status?: CoachResponse['status'];
-}
-
-interface MemoryCandidate {
-  id: string;
-  proposed_fact: string;
-  source_kind: string;
 }
 
 const STATUS_HINTS: Record<string, string> = {
@@ -71,7 +59,7 @@ export function ChatPage() {
 
   const candidatesQuery = useQuery({
     queryKey: ['memory-candidates'],
-    queryFn: () => apiFetch<MemoryCandidate[]>('/profiles/memory-candidates'),
+    queryFn: () => apiGet('/api/v1/profiles/memory-candidates'),
   });
 
   useEffect(() => {
@@ -80,7 +68,7 @@ export function ChatPage() {
 
   const send = useMutation({
     mutationFn: (message: string) =>
-      apiFetch<CoachResponse>('/chat', { method: 'POST', body: { message } }),
+      apiPost('/api/v1/chat', { message }),
     onSuccess: (response) => {
       setMessages((prev) => [
         ...prev,
@@ -91,7 +79,7 @@ export function ChatPage() {
           status: response.status,
         },
       ]);
-      if (response.memory_candidate_ids.length > 0) {
+      if ((response.memory_candidate_ids?.length ?? 0) > 0) {
         void queryClient.invalidateQueries({ queryKey: ['memory-candidates'] });
       }
     },
@@ -105,7 +93,7 @@ export function ChatPage() {
 
   const resolve = useMutation({
     mutationFn: ({ id, decision }: { id: string; decision: 'accept' | 'reject' }) =>
-      apiFetch(`/profiles/memory-candidates/${id}/resolve`, { method: 'POST', body: { decision } }),
+      apiPost('/api/v1/profiles/memory-candidates/{candidate_id}/resolve', { decision }, { candidate_id: id }),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['memory-candidates'] }),
   });
 

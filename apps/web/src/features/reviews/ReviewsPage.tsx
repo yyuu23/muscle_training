@@ -6,32 +6,10 @@
 import { useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { ArrowPathIcon, ExclamationTriangleIcon } from '@heroicons/react/24/solid';
-import { apiFetch } from '../../api/client';
+import { apiGet, apiPost } from '../../api/client';
 import { EmptyState, ErrorState } from '../../components/ErrorState';
 import { Button } from '../../components/ui/Button';
 import { SkeletonCards } from '../../components/ui/Skeleton';
-
-interface WeeklyReview {
-  id: string;
-  week_start: string;
-  data_cutoff_at: string;
-  data_revision: number;
-  stale: boolean;
-  statistics: {
-    sessions_completed?: number;
-    sessions_total?: number;
-    planned_days?: number | null;
-    total_working_sets?: number;
-    total_working_reps?: number;
-    skipped_exercises?: number;
-    weight_first?: number | null;
-    weight_last?: number | null;
-    data_sufficient?: boolean;
-    session_details?: { started_at: string; total_working_sets: number }[];
-  };
-  narrative: string | null;
-  created_at: string;
-}
 
 function StatCard({ label, value, delay = 0 }: { label: string; value: string | number; delay?: number }) {
   return (
@@ -80,17 +58,17 @@ export function ReviewsPage() {
 
   const { data, isLoading, isError, refetch } = useQuery({
     queryKey: ['reviews', 'weekly'],
-    queryFn: () => apiFetch<{ items: WeeklyReview[] }>('/reviews/weekly'),
+    queryFn: () => apiGet('/api/v1/reviews/weekly'),
   });
 
   const generate = useMutation({
-    mutationFn: () => apiFetch<WeeklyReview>('/reviews/weekly', { method: 'POST', body: {} }),
+    mutationFn: () => apiPost('/api/v1/reviews/weekly', {}),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['reviews'] }),
   });
 
   const regenerate = useMutation({
     mutationFn: (id: string) =>
-      apiFetch<WeeklyReview>(`/reviews/weekly/${id}/regenerate`, { method: 'POST' }),
+      apiPost('/api/v1/reviews/weekly/{review_id}/regenerate', undefined, { review_id: id }),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['reviews'] }),
   });
 

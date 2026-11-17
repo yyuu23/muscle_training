@@ -10,7 +10,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   ArrowRightIcon, CheckIcon, XMarkIcon, SunIcon, MoonIcon, ComputerDesktopIcon,
 } from '@heroicons/react/24/outline';
-import { apiFetch } from '../../api/client';
+import { apiGet, apiPost } from '../../api/client';
 import { useAuth, useLogout } from '../auth/useAuth';
 import { useSyncStatus } from '../../hooks/useSync';
 import { useTheme, ThemeMode } from '../../hooks/useTheme';
@@ -19,14 +19,6 @@ import { ConfirmAction } from '../../components/ConfirmAction';
 import { Badge } from '../../components/ui/Badge';
 import { Button } from '../../components/ui/Button';
 import { Sheet } from '../../components/ui/Sheet';
-
-interface MemoryCandidate {
-  id: string;
-  proposed_fact: string;
-  source_kind: string;
-  status: string;
-  metadata: { kind?: string } | null;
-}
 
 const SOURCE_KIND_LABELS: Record<string, string> = {
   user_statement: '你的陈述',
@@ -56,14 +48,14 @@ export function SettingsPage() {
 
   const candidatesQuery = useQuery({
     queryKey: ['memory-candidates'],
-    queryFn: () => apiFetch<MemoryCandidate[]>('/profiles/memory-candidates'),
+    queryFn: () => apiGet('/api/v1/profiles/memory-candidates'),
   });
 
   const [exportJobId, setExportJobId] = useState<string | null>(null);
 
   const exportQuery = useQuery({
     queryKey: ['exports', exportJobId],
-    queryFn: () => apiFetch<{ status: string; download_url: string | null }>(`/exports/${exportJobId}`),
+    queryFn: () => apiGet('/api/v1/exports/{job_id}', { job_id: exportJobId! }),
     enabled: !!exportJobId,
     refetchInterval: (query) =>
       query.state.data && ['succeeded', 'failed'].includes(query.state.data.status) ? false : 2000,
@@ -71,7 +63,7 @@ export function SettingsPage() {
 
   const resolveCandidate = useMutation({
     mutationFn: ({ id, decision }: { id: string; decision: 'accept' | 'reject' }) =>
-      apiFetch(`/profiles/memory-candidates/${id}/resolve`, { method: 'POST', body: { decision } }),
+      apiPost('/api/v1/profiles/memory-candidates/{candidate_id}/resolve', { decision }, { candidate_id: id }),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['memory-candidates'] }),
   });
 
@@ -93,7 +85,7 @@ export function SettingsPage() {
   };
 
   const startExport = async () => {
-    const result = await apiFetch<{ job_id: string }>('/exports', { method: 'POST' });
+    const result = await apiPost('/api/v1/exports');
     setExportJobId(result.job_id);
   };
 

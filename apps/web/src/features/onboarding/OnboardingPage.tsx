@@ -10,7 +10,7 @@ import { useNavigate } from 'react-router-dom';
 import { useForm } from 'react-hook-form';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { CheckCircleIcon, ChevronLeftIcon } from '@heroicons/react/24/solid';
-import { apiFetch, APIError } from '../../api/client';
+import { APIError, apiGet, apiPatch } from '../../api/client';
 import { db } from '../../offline/database';
 import { useAuth } from '../auth/useAuth';
 import { useToast } from '../../components/ui/Toast';
@@ -49,12 +49,12 @@ export function OnboardingPage() {
 
   const { data: profileData } = useQuery({
     queryKey: ['profiles', 'me'],
-    queryFn: () => apiFetch<{ profile: { version: number } & Partial<OnboardingForm> }>('/profiles'),
+    queryFn: () => apiGet('/api/v1/profiles'),
   });
 
   const { data: completeness } = useQuery({
     queryKey: ['profiles', 'completeness'],
-    queryFn: () => apiFetch<{ missing_fields: string[]; complete: boolean }>('/profiles/completeness'),
+    queryFn: () => apiGet('/api/v1/profiles/completeness'),
   });
 
   const { register, handleSubmit, watch, setValue, getValues } = useForm<OnboardingForm>({
@@ -114,9 +114,9 @@ export function OnboardingPage() {
   const submit = handleSubmit(async (data) => {
     const version = profileData?.profile?.version ?? 1;
     try {
-      const updated = await apiFetch<{ version: number }>('/profiles', {
-        method: 'PATCH',
-        body: { expected_version: version, ...data },
+      const updated = await apiPatch('/api/v1/profiles', {
+        expected_version: version,
+        ...data,
       });
       // Update the local snapshot cache
       if (user) {

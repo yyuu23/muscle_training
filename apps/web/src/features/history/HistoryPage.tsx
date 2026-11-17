@@ -9,7 +9,7 @@ import { useLiveQuery } from 'dexie-react-hooks';
 import { ChevronDownIcon, PencilSquareIcon } from '@heroicons/react/24/solid';
 import { db } from '../../offline/database';
 import type { LocalWorkoutSession } from '../../offline/types';
-import { apiFetch, APIError } from '../../api/client';
+import { APIError, apiPatch } from '../../api/client';
 import { useAuth } from '../auth/useAuth';
 import { useSyncStatus } from '../../hooks/useSync';
 import { EmptyState } from '../../components/ErrorState';
@@ -76,16 +76,17 @@ export function HistoryPage() {
     if (!correction) return;
     setCorrectionMessage(null);
     try {
-      await apiFetch(`/workouts/sets/${correction.setId}`, {
-        method: 'PATCH',
-        body: {
+      await apiPatch(
+        '/api/v1/workouts/sets/{set_id}',
+        {
           expected_version: correction.expected_version,
           load_kg: correction.load_kg || null,
           reps: correction.reps,
           rir: correction.rir,
           reason: '在线更正（用户请求）',
         },
-      });
+        { set_id: correction.setId },
+      );
       setCorrection(null);
       setCorrectionMessage('已更正；相关复盘已标记过期。');
     } catch (err) {

@@ -10,7 +10,8 @@
  * - Parent failure stops child retries in the same cycle
  */
 
-import { apiFetch, isNetworkError, APIError } from '../api/client';
+import { APIError, apiPost, isNetworkError } from '../api/client';
+import type { components } from '../api/generated/schema';
 import { db } from './database';
 import { networkMonitor } from './network_monitor';
 import { outboxService } from './outbox';
@@ -29,11 +30,12 @@ type Listener = (state: SyncStateSnapshot) => void;
 const BACKOFF_SECONDS = [5, 15, 60, 300];
 const BATCH_LIMIT = 100;
 
-interface EventResult {
-  event_id: string;
-  outcome: 'applied' | 'already_applied' | 'dependency_pending' | 'rejected';
-  detail?: { error?: string; message?: string } | null;
-  retryable?: boolean;
+type EventResult = components['schemas']['SyncEventResult'];
+
+/** detail is a free-form dict on the wire; pull a human-readable reason. */
+function detailMessage(detail: Record<string, unknown> | null | undefined): string | undefined {
+  const message = detail?.message ?? detail?.error;
+  return typeof message === 'string' ? message : undefined;
 }
 
 export class SyncEngine {
@@ -152,10 +154,7 @@ export class SyncEngine {
 
     let results: EventResult[];
     try {
-      const response = await apiFetch<{ results: EventResult[] }>('/sync/events', {
-        method: 'POST',
-        body,
-      });
+      const response = await apiPost('/api/v1/sync/events', body);
       results = response.results;
     } catch (err) {
       // Outcome unknown → restore pending, retry same ids verbatim
@@ -191,7 +190,7 @@ export class SyncEngine {
         await db.outbox.update(event.id!, {
           status: 'pending' as const,
           next_attempt_at: new Date(Date.now() + 15_000).toISOString(),
-          last_error: result.detail?.message ?? '等待父记录同步',
+          last_error: detailMessage(result.detail) ?? '等待父记录同步',
         });
       } else {
         // rejected: permanent → needs_attention; else retry with backoff
@@ -201,7 +200,7 @@ export class SyncEngine {
           next_attempt_at: retryable
             ? new Date(Date.now() + this.backoffMs(event.attempt_count)).toISOString()
             : event.next_attempt_at,
-          last_error: result.detail?.message ?? result.detail?.error ?? '事件被拒绝',
+          last_error: detailMessage(result.detail) ?? '事件被拒绝',
         });
         if (!retryable && event.payload.id) {
           blockedParents.add(String(event.payload.id));

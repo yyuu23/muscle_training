@@ -6,21 +6,21 @@
 import { useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { CheckIcon, XMarkIcon, DocumentArrowUpIcon, ShieldCheckIcon } from '@heroicons/react/24/solid';
-import { apiFetch } from '../../api/client';
+import { apiGet, apiPost } from '../../api/client';
 import { useAuth } from '../auth/useAuth';
 import { Badge } from '../../components/ui/Badge';
 import type { BadgeTone } from '../../components/ui/Badge';
 import { Button } from '../../components/ui/Button';
 
-interface ContentItem {
+type ContentItem = {
   id: string;
   slug: string;
   content_version: number;
   name: string;
-  review_status: 'draft' | 'approved' | 'rejected';
+  review_status: string;
   fixture: boolean;
   reviewed_at: string | null;
-}
+};
 
 const STATUS_TONES: Record<string, BadgeTone> = {
   draft: 'warning', approved: 'success', rejected: 'danger',
@@ -35,23 +35,19 @@ export function AdminCatalogPage() {
 
   const statsQuery = useQuery({
     queryKey: ['admin', 'stats'],
-    queryFn: () =>
-      apiFetch<{
-        exercises_total: number; exercises_approved: number;
-        templates_total: number; templates_approved: number; content_ready: boolean;
-      }>('/admin/catalog/stats'),
+    queryFn: () => apiGet('/api/v1/admin/catalog/stats'),
     enabled: isAdmin,
   });
 
   const exercisesQuery = useQuery({
     queryKey: ['admin', 'exercises'],
-    queryFn: () => apiFetch<ContentItem[]>('/admin/catalog/exercises'),
+    queryFn: () => apiGet('/api/v1/admin/catalog/exercises'),
     enabled: isAdmin,
   });
 
   const templatesQuery = useQuery({
     queryKey: ['admin', 'templates'],
-    queryFn: () => apiFetch<ContentItem[]>('/admin/catalog/templates'),
+    queryFn: () => apiGet('/api/v1/admin/catalog/templates'),
     enabled: isAdmin,
   });
 
@@ -61,10 +57,7 @@ export function AdminCatalogPage() {
 
   const importContent = useMutation({
     mutationFn: (kind: 'exercises' | 'templates') =>
-      apiFetch<{ imported: number; skipped: number }>('/admin/catalog/import', {
-        method: 'POST',
-        body: { content_root: 'content', kind },
-      }),
+      apiPost('/api/v1/admin/catalog/import', { content_root: 'content', kind }),
     onSuccess: (r) => {
       setMessage(`导入完成：成功 ${r.imported}，跳过 ${r.skipped}`);
       invalidate();
@@ -73,8 +66,20 @@ export function AdminCatalogPage() {
   });
 
   const review = useMutation({
-    mutationFn: ({ kind, id, decision }: { kind: string; id: string; decision: 'approve' | 'reject' }) =>
-      apiFetch(`/admin/catalog/${kind}/${id}/review`, { method: 'POST', body: { decision } }),
+    mutationFn: async ({ kind, id, decision }: { kind: string; id: string; decision: 'approve' | 'reject' }) => {
+      if (kind === 'exercises') {
+        return apiPost(
+          '/api/v1/admin/catalog/exercises/{exercise_id}/review',
+          { decision },
+          { exercise_id: id },
+        );
+      }
+      return apiPost(
+        '/api/v1/admin/catalog/templates/{template_id}/review',
+        { decision },
+        { template_id: id },
+      );
+    },
     onSuccess: invalidate,
   });
 

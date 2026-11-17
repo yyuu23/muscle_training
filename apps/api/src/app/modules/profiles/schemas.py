@@ -29,6 +29,11 @@ PROVENANCE = Literal[
 ]
 
 
+class ProfileCompletenessResponse(BaseModel):
+    missing_fields: list[str]
+    complete: bool
+
+
 class ProfileResponse(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 

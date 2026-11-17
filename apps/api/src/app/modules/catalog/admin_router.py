@@ -19,6 +19,7 @@ from app.modules.catalog.schemas import (
     ContentImportResponse,
     ContentReviewRequest,
     ContentReviewResponse,
+    ContentStatsResponse,
     ContentValidateResponse,
     ExerciseResponse,
     TemplateResponse,
@@ -56,7 +57,7 @@ async def validate_content(
     return ContentValidateResponse(valid=not issues, issues=issues)
 
 
-@router.get("/stats")
+@router.get("/stats", response_model=ContentStatsResponse)
 async def content_stats(
     admin: CurrentAdminUser,
     db: AsyncSession = Depends(get_db_session),

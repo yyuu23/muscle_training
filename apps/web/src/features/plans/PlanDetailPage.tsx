@@ -7,46 +7,18 @@ import { useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { ArrowLeftIcon, CheckIcon } from '@heroicons/react/24/solid';
-import { apiFetch, APIError } from '../../api/client';
+import { APIError, apiGet, apiPost } from '../../api/client';
+import type { components } from '../../api/generated/schema';
 import { ErrorState } from '../../components/ErrorState';
 import { PlanDiff, type PlanDiffData, weekdayLabel } from '../../components/PlanDiff';
 import { ConfirmAction } from '../../components/ConfirmAction';
 import { Badge } from '../../components/ui/Badge';
 import { SkeletonCards } from '../../components/ui/Skeleton';
 
-interface PlanDetail {
-  plan: {
-    id: string;
-    sequence_number: number;
-    status: string;
-    content: {
-      title: string;
-      goal: string;
-      timezone: string;
-      days: {
-        day_key: string;
-        weekday: number;
-        estimated_minutes: number;
-        exercises: {
-          item_id: string;
-          exercise_snapshot: { name?: string; slug?: string };
-          working_sets: number;
-          reps_min: number | null;
-          reps_max: number | null;
-          duration_seconds: number | null;
-          rest_seconds: number;
-          initial_load_kg: string | null;
-          load_instruction: string | null;
-        }[];
-      }[];
-    };
-    basis_profile_version: number | null;
-    basis_planning_revision: number | null;
-    rationale: string | null;
-  };
-  validation_issues: { code: string; message: string }[];
+/** Contract type with the free-form diff narrowed to the view model. */
+type PlanDetail = Omit<components['schemas']['PlanDetailResponse'], 'diff_vs_active'> & {
   diff_vs_active: PlanDiffData | null;
-}
+};
 
 export function PlanDetailPage() {
   const { planId } = useParams<{ planId: string }>();
@@ -55,18 +27,22 @@ export function PlanDetailPage() {
 
   const { data, isLoading, isError, refetch } = useQuery({
     queryKey: ['plans', planId],
-    queryFn: () => apiFetch<PlanDetail>(`/plans/${planId}`),
+    queryFn: async (): Promise<PlanDetail> => {
+      const detail = await apiGet('/api/v1/plans/{plan_id}', { plan_id: planId! });
+      return { ...detail, diff_vs_active: (detail.diff_vs_active ?? null) as PlanDiffData | null };
+    },
     enabled: !!planId,
   });
 
   const adopt = async () => {
     setError(null);
     try {
-      const snapshot = await apiFetch<{ planning_revision: number }>('/sync/snapshot');
-      await apiFetch(`/plans/${planId}/activate`, {
-        method: 'POST',
-        body: { expected_basis_planning_revision: snapshot.planning_revision },
-      });
+      const snapshot = await apiGet('/api/v1/sync/snapshot');
+      await apiPost(
+        '/api/v1/plans/{plan_id}/activate',
+        { expected_basis_planning_revision: snapshot.planning_revision },
+        { plan_id: planId! },
+      );
       await queryClient.invalidateQueries({ queryKey: ['plans'] });
     } catch (err) {
       if (err instanceof APIError) {

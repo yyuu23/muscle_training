@@ -16,9 +16,19 @@ class UploadCreateRequest(BaseModel):
     byte_size: int = Field(..., gt=0, le=600 * 1024 * 1024)
 
 
+class UploadGrant(BaseModel):
+    """What the client needs to perform the granted upload."""
+
+    url: str
+    method: str = "PUT"
+    headers: dict[str, str] = Field(default_factory=dict)
+    expires_at: str | None = None
+    max_size_bytes: int | None = None
+
+
 class UploadCreateResponse(BaseModel):
     asset_id: uuid.UUID
-    upload: dict  # {url, method, headers, expires_at, max_size_bytes}
+    upload: UploadGrant
     object_key: str
 
 

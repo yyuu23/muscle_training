@@ -134,9 +134,9 @@ class SnapshotProfile(BaseModel):
     training_experience_months: int | None
     sessions_per_week: int | None
     minutes_per_session: int | None
-    available_weekdays: list | None
-    equipment: list | None
-    available_load_increments: list | None
+    available_weekdays: list[int] | None  # 1-7, Mon=1 (profiles §5.3)
+    equipment: list[str] | None
+    available_load_increments: list[str] | None
 
 
 class SnapshotFact(BaseModel):
@@ -156,13 +156,13 @@ class SnapshotExercise(BaseModel):
     slug: str
     content_version: int
     name: str
-    aliases: list
+    aliases: list[str]
     movement_pattern: str | None
-    equipment_tags: list
+    equipment_tags: list[str]
     metric_type: str
     load_mode: str
-    instructions: list
-    common_errors: list
+    instructions: list[str]
+    common_errors: list[str]
 
 
 class SyncSnapshotResponse(BaseModel):

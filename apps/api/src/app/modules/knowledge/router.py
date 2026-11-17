@@ -10,7 +10,7 @@ Knowledge API router (plan §6.4)
 
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, Query
+from fastapi import APIRouter, Depends, Query, Request
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.db.session import get_db_session
@@ -57,6 +57,23 @@ async def create_upload(
         upload=upload,
         object_key=asset.object_key,
     )
+
+
+@router.put("/assets/upload/{object_key:path}")
+async def upload_bytes(
+    object_key: str,
+    request: Request,
+    user: CurrentUser,
+    db: AsyncSession = Depends(get_db_session),
+):
+    """Development filesystem storage: client uploads through the API
+    (the upload grant for filesystem points here; OSS uses presigned
+    URLs). Ownership + pending state + declared size are enforced."""
+    service = KnowledgeService(db)
+    data = await request.body()
+    byte_count = await service.store_upload_bytes(user.id, object_key, data)
+    await db.commit()
+    return {"stored_bytes": byte_count}
 
 
 @router.post("/assets/{asset_id}/complete", response_model=UploadCompleteResponse)

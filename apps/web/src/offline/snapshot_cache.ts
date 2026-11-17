@@ -7,51 +7,14 @@
  * on top — server data never deletes local unsynced events.
  */
 
-import { apiFetch } from '../api/client';
+import { apiGet } from '../api/client';
+import type { components } from '../api/generated/schema';
 import { db } from './database';
 
-interface SnapshotResponse {
-  generated_at: string;
-  planning_revision: number;
-  profile: {
-    version: number;
-    goal: string | null;
-    height_cm: number | null;
-    training_experience_months: number | null;
-    sessions_per_week: number | null;
-    minutes_per_session: number | null;
-    available_weekdays: number[] | null;
-    equipment: string[] | null;
-    available_load_increments: string[] | null;
-  } | null;
-  facts: { id: string; kind: string; fact_key: string; value: string; provenance: string }[];
-  active_plan: {
-    id: string;
-    sequence_number: number;
-    status: string;
-    content: Record<string, unknown>;
-    activated_at: string | null;
-  } | null;
-  exercises: {
-    id: string;
-    slug: string;
-    content_version: number;
-    name: string;
-    aliases: string[];
-    movement_pattern: string | null;
-    equipment_tags: string[];
-    metric_type: string;
-    load_mode: string;
-    instructions: string[];
-    common_errors: string[];
-  }[];
-  recent_sessions: Record<string, unknown>[];
-  recent_measurements: Record<string, unknown>[];
-  recent_meals: Record<string, unknown>[];
-}
+type SnapshotResponse = components['schemas']['SyncSnapshotResponse'];
 
 export async function fetchAndApplySnapshot(ownerUserId: string): Promise<SnapshotResponse> {
-  const snapshot = await apiFetch<SnapshotResponse>('/sync/snapshot');
+  const snapshot = await apiGet('/api/v1/sync/snapshot');
 
   // Pending local record ids must survive the replace step
   const [pendingSessions, pendingMeasurements, pendingMeals] = await Promise.all([

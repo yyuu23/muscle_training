@@ -6,28 +6,13 @@
 import { useRef, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { DocumentArrowUpIcon } from '@heroicons/react/24/solid';
-import { apiFetch, APIError } from '../../api/client';
+import { APIError, apiGet, apiPost } from '../../api/client';
 import { EmptyState, ErrorState } from '../../components/ErrorState';
 import { Badge } from '../../components/ui/Badge';
 import type { BadgeTone } from '../../components/ui/Badge';
 import { Button } from '../../components/ui/Button';
 import { Sheet } from '../../components/ui/Sheet';
 import { SkeletonCards } from '../../components/ui/Skeleton';
-
-interface KnowledgeSource {
-  id: string;
-  title: string;
-  source_type: string;
-  status: 'processing' | 'awaiting_review' | 'indexing' | 'ready' | 'failed' | 'withdrawn';
-  visibility: 'private' | 'shared';
-  updated_at: string;
-}
-
-interface SourceDetail {
-  source: KnowledgeSource;
-  revisions: { id: string; revision: number; status: string; reviewed_at: string | null }[];
-  chunks: { id: string; ordinal: number; start_ms: number | null; original_text: string }[];
-}
 
 const STATUS_LABELS: Record<string, string> = {
   processing: '处理中', awaiting_review: '待审核', indexing: '索引中',
@@ -57,18 +42,19 @@ export function KnowledgePage() {
 
   const sourcesQuery = useQuery({
     queryKey: ['knowledge', 'sources'],
-    queryFn: () => apiFetch<{ items: KnowledgeSource[] }>('/knowledge/sources'),
+    queryFn: () => apiGet('/api/v1/knowledge/sources'),
     refetchInterval: 8000,
   });
 
   const detailQuery = useQuery({
     queryKey: ['knowledge', detailId],
-    queryFn: () => apiFetch<SourceDetail>(`/knowledge/sources/${detailId}`),
+    queryFn: () => apiGet('/api/v1/knowledge/sources/{source_id}', { source_id: detailId! }),
     enabled: !!detailId,
   });
 
   const withdraw = useMutation({
-    mutationFn: (id: string) => apiFetch(`/knowledge/sources/${id}/withdraw`, { method: 'POST' }),
+    mutationFn: (id: string) =>
+      apiPost('/api/v1/knowledge/sources/{source_id}/withdraw', undefined, { source_id: id }),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['knowledge'] }),
   });
 
@@ -76,24 +62,31 @@ export function KnowledgePage() {
     setUploadError(null);
     setUploading(`正在上传 ${file.name}…`);
     try {
-      const created = await apiFetch<{ asset_id: string; upload: { url: string; method: string; headers: Record<string, string> } }>(
-        '/knowledge/assets/uploads',
-        {
-          method: 'POST',
-          body: { filename: file.name, content_type: file.type || 'application/octet-stream', byte_size: file.size },
-        },
-      );
+      const created = await apiPost('/api/v1/knowledge/assets/uploads', {
+        filename: file.name,
+        content_type: file.type || 'application/octet-stream',
+        byte_size: file.size,
+      });
 
-      // Development filesystem backend → upload through our API endpoint
-      await apiFetch(`/assets/upload/${file.name}`, { method: 'PUT', rawBody: await file.arrayBuffer() }).catch(() => {});
-      void created;
+      // Upload via the grant (filesystem dev backend points at our API;
+      // OSS would be an absolute presigned URL — same code path).
+      const uploadResp = await fetch(created.upload.url, {
+        method: created.upload.method || 'PUT',
+        headers: created.upload.headers,
+        credentials: 'same-origin',
+        body: await file.arrayBuffer(),
+      });
+      if (!uploadResp.ok) {
+        throw new Error(`上传失败 (${uploadResp.status})`);
+      }
 
       const digest = await crypto.subtle.digest('SHA-256', await file.arrayBuffer());
       const sha256 = Array.from(new Uint8Array(digest)).map((b) => b.toString(16).padStart(2, '0')).join('');
 
-      const completed = await apiFetch<{ verified: boolean; detail: string | null }>(
-        `/knowledge/assets/${created.asset_id}/complete`,
-        { method: 'POST', body: { sha256 } },
+      const completed = await apiPost(
+        '/api/v1/knowledge/assets/{asset_id}/complete',
+        { sha256 },
+        { asset_id: created.asset_id },
       );
       if (!completed.verified) {
         throw new Error(completed.detail ?? '上传校验失败');
@@ -113,9 +106,9 @@ export function KnowledgePage() {
     if (!pendingImport) return;
     const title = importTitle.trim() || pendingImport.defaultTitle;
     try {
-      await apiFetch('/knowledge/imports', {
-        method: 'POST',
-        body: { asset_id: pendingImport.assetId, title },
+      await apiPost('/api/v1/knowledge/imports', {
+        asset_id: pendingImport.assetId,
+        title,
       });
       setUploading('已提交导入任务，处理中…');
       await queryClient.invalidateQueries({ queryKey: ['knowledge'] });

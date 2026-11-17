@@ -13,6 +13,7 @@ from app.modules.profiles.schemas import (
     FactSupersedeRequest,
     MemoryCandidateResolveRequest,
     MemoryCandidateResponse,
+    ProfileCompletenessResponse,
     ProfileFactCreateRequest,
     ProfileFactResponse,
     ProfileResponse,
@@ -56,7 +57,7 @@ async def update_my_profile(
     return ProfileResponse.model_validate(profile)
 
 
-@router.get("/completeness")
+@router.get("/completeness", response_model=ProfileCompletenessResponse)
 async def profile_completeness(
     user: CurrentUser,
     db: AsyncSession = Depends(get_db_session),

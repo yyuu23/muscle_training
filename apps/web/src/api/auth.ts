@@ -1,78 +1,41 @@
 /**
- * Auth API (plan §6.2)
+ * Auth API (plan §6.2) — typed against the generated contract.
  */
 
-import { apiFetch, setCsrfToken, clearCsrfToken } from './client';
+import type { components } from './generated/schema';
+import { apiGet, apiPost, clearCsrfToken, setCsrfToken } from './client';
 
-export interface CurrentUser {
-  id: string;
-  username: string;
-  display_name: string;
-  role: 'admin' | 'member';
-  timezone: string;
-  status: string;
-  created_at: string;
-}
+type Schemas = components['schemas'];
 
-export interface Capabilities {
-  chat_model_configured: boolean;
-  embedding_model_configured: boolean;
-  transcription_configured: boolean;
-  content_ready: boolean;
-  storage_configured: boolean;
-  offline_recording_available: boolean;
-}
+export type CurrentUser = Schemas['UserResponse'];
+export type Capabilities = Schemas['CapabilitiesResponse'];
 
-interface SessionTokenResponse {
-  user: CurrentUser;
-  csrf_token: string;
-}
-
-interface AuthMeResponse {
-  user: CurrentUser;
-  csrf_token: string;
-  capabilities: Capabilities;
-}
-
-export async function login(username: string, password: string): Promise<SessionTokenResponse> {
-  const result = await apiFetch<SessionTokenResponse>('/auth/login', {
-    method: 'POST',
-    body: { username, password },
-    skipCsrf: true,
-  });
+export async function login(username: string, password: string): Promise<Schemas['SessionTokenResponse']> {
+  const result = await apiPost('/api/v1/auth/login', { username, password });
   setCsrfToken(result.csrf_token);
   return result;
 }
 
-export async function register(input: {
-  username: string;
-  password: string;
-  display_name: string;
-  invite_code: string;
-}): Promise<SessionTokenResponse> {
-  const result = await apiFetch<SessionTokenResponse>('/auth/register', {
-    method: 'POST',
-    body: input,
-    skipCsrf: true,
-  });
+export async function register(input: Schemas['RegisterRequest']): Promise<Schemas['SessionTokenResponse']> {
+  const result = await apiPost('/api/v1/auth/register', input);
   setCsrfToken(result.csrf_token);
   return result;
 }
 
-export async function getMe(): Promise<AuthMeResponse> {
-  const result = await apiFetch<AuthMeResponse>('/auth/me');
+export async function getMe(): Promise<Schemas['AuthMeResponse']> {
+  const result = await apiGet('/api/v1/auth/me');
   setCsrfToken(result.csrf_token);
   return result;
 }
 
 export async function logout(): Promise<void> {
-  await apiFetch('/auth/logout', { method: 'POST' });
+  await apiPost('/api/v1/auth/logout');
   clearCsrfToken();
 }
 
 export async function changePassword(currentPassword: string, newPassword: string): Promise<void> {
-  await apiFetch('/auth/change-password', {
-    method: 'POST',
-    body: { current_password: currentPassword, new_password: newPassword },
+  await apiPost('/api/v1/auth/change-password', {
+    current_password: currentPassword,
+    new_password: newPassword,
   });
 }

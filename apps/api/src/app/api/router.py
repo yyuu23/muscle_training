@@ -14,6 +14,7 @@ from app.modules.catalog.router import router as catalog_router
 from app.modules.conversations.router import router as conversations_router
 from app.modules.deletion.router import router as deletion_router
 from app.modules.exports.router import router as exports_router
+from app.modules.jobs.router import router as jobs_router
 from app.modules.knowledge.router import router as knowledge_router
 from app.modules.measurements.router import router as measurements_router
 from app.modules.nutrition.router import router as nutrition_router
@@ -49,6 +50,7 @@ api_router.include_router(conversations_router, tags=["conversations"])
 
 # Reviews, jobs, exports, account deletion
 api_router.include_router(reviews_router, prefix="/reviews", tags=["reviews"])
+api_router.include_router(jobs_router, prefix="/jobs", tags=["jobs"])
 api_router.include_router(exports_router, prefix="/exports", tags=["exports"])
 api_router.include_router(deletion_router, tags=["deletion"])
 
